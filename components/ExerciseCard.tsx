@@ -6,6 +6,8 @@ import { ExerciseLog, SetLog, getLastExerciseLog, getExercisePRs } from "@/lib/s
 import { calculate1RM, formatWeight } from "@/lib/calculations";
 import { SetLogger } from "./SetLogger";
 import { YouTubeEmbed } from "./YouTubeEmbed";
+import { ExercisePicker } from "./ExercisePicker";
+import { LibraryExercise } from "@/lib/exerciseLibrary";
 
 interface Group {
   id: number;
@@ -20,6 +22,8 @@ interface ExerciseCardProps {
   isExpanded: boolean;
   onToggle: () => void;
   groups?: Group[];
+  onExerciseSwap?: (originalId: string, newExercise: LibraryExercise) => void;
+  onTargetChange?: (exerciseId: string, sets: number, reps: string) => void;
 }
 
 export function ExerciseCard({
@@ -30,6 +34,8 @@ export function ExerciseCard({
   isExpanded,
   onToggle,
   groups = [],
+  onExerciseSwap,
+  onTargetChange,
 }: ExerciseCardProps) {
   const [lastLog, setLastLog] = useState<ExerciseLog | null>(null);
   const [isLoadingLast, setIsLoadingLast] = useState(true);
@@ -39,6 +45,7 @@ export function ExerciseCard({
   const [sharingSet, setSharingSet] = useState<SetLog | null>(null);
   const [sharedSets, setSharedSets] = useState<Set<number>>(new Set());
   const [prRecords, setPrRecords] = useState<Record<number, number>>({});
+  const [showExercisePicker, setShowExercisePicker] = useState(false);
 
   useEffect(() => {
     // Get the last workout log and PR records for this exercise
@@ -189,13 +196,35 @@ export function ExerciseCard({
       }`}
     >
       {/* Header - always visible */}
-      <button
-        onClick={onToggle}
-        className="w-full px-4 py-4 flex items-center justify-between text-left"
-      >
+      <div className="px-4 py-4 flex items-center justify-between">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-lg truncate">{exercise.name}</h3>
+            {onExerciseSwap ? (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowExercisePicker(true);
+                }}
+                className="font-semibold text-lg truncate text-left hover:text-accent transition-colors flex items-center gap-1.5 group"
+              >
+                {exercise.name}
+                <svg
+                  className="w-4 h-4 text-muted group-hover:text-accent flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                  />
+                </svg>
+              </button>
+            ) : (
+              <h3 className="font-semibold text-lg truncate">{exercise.name}</h3>
+            )}
             {isComplete && (
               <svg
                 className="w-5 h-5 text-success flex-shrink-0"
@@ -210,32 +239,67 @@ export function ExerciseCard({
               </svg>
             )}
           </div>
-          <p className="text-sm text-muted mt-0.5">
-            {exercise.sets} sets × {exercise.reps} reps
+          <div className="flex items-center gap-2 mt-0.5">
+            {onTargetChange ? (
+              <div className="flex items-center gap-1 text-sm">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (exercise.sets > 1) {
+                      onTargetChange(exercise.id, exercise.sets - 1, exercise.reps);
+                    }
+                  }}
+                  className="w-6 h-6 flex items-center justify-center rounded bg-background border border-border text-muted hover:text-foreground hover:border-foreground/30 transition-colors"
+                >
+                  -
+                </button>
+                <span className="text-muted min-w-[60px] text-center">{exercise.sets} sets</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onTargetChange(exercise.id, exercise.sets + 1, exercise.reps);
+                  }}
+                  className="w-6 h-6 flex items-center justify-center rounded bg-background border border-border text-muted hover:text-foreground hover:border-foreground/30 transition-colors"
+                >
+                  +
+                </button>
+                <span className="text-muted mx-1">×</span>
+                <span className="text-muted">{exercise.reps} reps</span>
+              </div>
+            ) : (
+              <p className="text-sm text-muted">
+                {exercise.sets} sets × {exercise.reps} reps
+              </p>
+            )}
             {!isLoadingLast && lastLog && lastLog.sets[0] && (
-              <span className="ml-2 text-accent">
+              <span className="text-sm text-accent">
                 • Last: {formatWeight(lastLog.sets[0].weight)}kg
               </span>
             )}
-          </p>
+          </div>
         </div>
 
-        <svg
-          className={`w-5 h-5 text-muted transition-transform flex-shrink-0 ml-2 ${
-            isExpanded ? "rotate-180" : ""
-          }`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
+        <button
+          onClick={onToggle}
+          className="p-2 -mr-2"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M19 9l-7 7-7-7"
-          />
-        </svg>
-      </button>
+          <svg
+            className={`w-5 h-5 text-muted transition-transform flex-shrink-0 ${
+              isExpanded ? "rotate-180" : ""
+            }`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </button>
+      </div>
 
       {/* Expanded content */}
       {isExpanded && (
@@ -373,6 +437,18 @@ export function ExerciseCard({
           </div>
         </div>
       )}
+
+      {/* Exercise Picker Modal */}
+      <ExercisePicker
+        isOpen={showExercisePicker}
+        onClose={() => setShowExercisePicker(false)}
+        currentExerciseId={exercise.id}
+        onSelect={(newExercise) => {
+          if (onExerciseSwap) {
+            onExerciseSwap(exercise.id, newExercise);
+          }
+        }}
+      />
     </div>
   );
 }

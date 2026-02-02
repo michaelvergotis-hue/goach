@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
-import { getWorkoutDay, WorkoutDay, getPhase } from "@/lib/program";
+import { getWorkoutDay, WorkoutDay, getPhase, Exercise } from "@/lib/program";
 import {
   ExerciseLog,
   WorkoutLog,
@@ -14,6 +14,7 @@ import {
 } from "@/lib/storage";
 import { getFriendById } from "@/lib/friends";
 import { ExerciseCard } from "@/components/ExerciseCard";
+import { LibraryExercise } from "@/lib/exerciseLibrary";
 
 export default function WorkoutPage() {
   const params = useParams();
@@ -39,6 +40,9 @@ export default function WorkoutPage() {
 
   // Groups for PR sharing
   const [groups, setGroups] = useState<{ id: number; name: string }[]>([]);
+
+  // Exercise modifications (swaps and target changes)
+  const [modifiedExercises, setModifiedExercises] = useState<Record<string, Exercise>>({});
 
   // Completion state
   const [isMarkingComplete, setIsMarkingComplete] = useState(false);
@@ -138,6 +142,102 @@ export default function WorkoutPage() {
     }
   };
 
+  // Handle exercise swap
+  const handleExerciseSwap = (originalId: string, newExercise: LibraryExercise) => {
+    if (!workout) return;
+
+    // Find the original exercise to preserve sets/reps
+    const originalExercise = workout.exercises.find(e => e.id === originalId);
+    if (!originalExercise) return;
+
+    // Create modified exercise with new name/id but same sets/reps
+    const modified: Exercise = {
+      ...originalExercise,
+      id: newExercise.id,
+      name: newExercise.name,
+      isCompound: newExercise.isCompound,
+    };
+
+    setModifiedExercises(prev => ({
+      ...prev,
+      [originalId]: modified,
+    }));
+
+    // Update exercise logs to use new exercise ID
+    setExerciseLogs(prev => {
+      const newLogs = { ...prev };
+      if (prev[originalId]) {
+        newLogs[newExercise.id] = {
+          ...prev[originalId],
+          exerciseId: newExercise.id,
+        };
+        // Keep the old one too for now (in case they swap back)
+      }
+      return newLogs;
+    });
+  };
+
+  // Handle target sets/reps change
+  const handleTargetChange = (exerciseId: string, sets: number, reps: string) => {
+    if (!workout) return;
+
+    // Find the exercise (could be original or already modified)
+    const originalExercise = workout.exercises.find(e => e.id === exerciseId);
+    const existingModified = Object.values(modifiedExercises).find(e => e.id === exerciseId);
+    const exercise = existingModified || originalExercise;
+
+    if (!exercise) return;
+
+    // Find the original key (in case this is a swapped exercise)
+    const originalKey = Object.entries(modifiedExercises).find(
+      ([, e]) => e.id === exerciseId
+    )?.[0] || exerciseId;
+
+    const modified: Exercise = {
+      ...exercise,
+      sets,
+      reps,
+    };
+
+    setModifiedExercises(prev => ({
+      ...prev,
+      [originalKey]: modified,
+    }));
+
+    // Adjust the sets array in exerciseLogs if needed
+    setExerciseLogs(prev => {
+      const currentLog = prev[exerciseId];
+      if (!currentLog) return prev;
+
+      const currentSets = currentLog.sets;
+      let newSets = [...currentSets];
+
+      if (sets > currentSets.length) {
+        // Add more sets
+        const lastSet = currentSets[currentSets.length - 1] || { weight: 0, reps: 0 };
+        for (let i = currentSets.length; i < sets; i++) {
+          newSets.push({ weight: lastSet.weight, reps: 0 });
+        }
+      } else if (sets < currentSets.length) {
+        // Remove sets (but keep at least 1)
+        newSets = currentSets.slice(0, Math.max(1, sets));
+      }
+
+      return {
+        ...prev,
+        [exerciseId]: {
+          ...currentLog,
+          sets: newSets,
+        },
+      };
+    });
+  };
+
+  // Get the effective exercise (modified or original)
+  const getEffectiveExercise = (originalExercise: Exercise): Exercise => {
+    return modifiedExercises[originalExercise.id] || originalExercise;
+  };
+
   // Mark workout as complete and navigate back
   const handleMarkComplete = async () => {
     if (!userId) return;
@@ -208,9 +308,10 @@ export default function WorkoutPage() {
 
   const completedCount = workout
     ? workout.exercises.filter((ex) => {
-        const log = exerciseLogs[ex.id];
+        const effectiveEx = getEffectiveExercise(ex);
+        const log = exerciseLogs[effectiveEx.id] || exerciseLogs[ex.id];
         return (
-          log && log.sets.filter((s) => s.weight > 0 && s.reps > 0).length >= ex.sets
+          log && log.sets.filter((s) => s.weight > 0 && s.reps > 0).length >= effectiveEx.sets
         );
       }).length
     : 0;
@@ -281,22 +382,27 @@ export default function WorkoutPage() {
 
       {/* Exercises */}
       <main className="px-4 py-4 max-w-3xl mx-auto space-y-3">
-        {workout.exercises.map((exercise) => (
-          <ExerciseCard
-            key={exercise.id}
-            exercise={exercise}
-            userId={userId}
-            log={exerciseLogs[exercise.id]}
-            onLogChange={(log) => handleLogChange(exercise.id, log)}
-            isExpanded={expandedExercise === exercise.id}
-            onToggle={() =>
-              setExpandedExercise(
-                expandedExercise === exercise.id ? null : exercise.id
-              )
-            }
-            groups={groups}
-          />
-        ))}
+        {workout.exercises.map((exercise) => {
+          const effectiveExercise = getEffectiveExercise(exercise);
+          return (
+            <ExerciseCard
+              key={exercise.id}
+              exercise={effectiveExercise}
+              userId={userId}
+              log={exerciseLogs[effectiveExercise.id] || exerciseLogs[exercise.id]}
+              onLogChange={(log) => handleLogChange(effectiveExercise.id, log)}
+              isExpanded={expandedExercise === exercise.id}
+              onToggle={() =>
+                setExpandedExercise(
+                  expandedExercise === exercise.id ? null : exercise.id
+                )
+              }
+              groups={groups}
+              onExerciseSwap={(originalId, newExercise) => handleExerciseSwap(exercise.id, newExercise)}
+              onTargetChange={handleTargetChange}
+            />
+          );
+        })}
       </main>
 
       {/* Bottom action bar */}
