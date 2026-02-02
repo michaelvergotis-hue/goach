@@ -61,7 +61,7 @@ export default function DashboardPage() {
       {/* Header */}
       <header className="sticky top-0 bg-background/80 backdrop-blur-lg border-b border-border z-10">
         <div className="px-4 py-4 flex items-center justify-between max-w-lg mx-auto">
-          <h1 className="text-xl font-bold">Goach</h1>
+          <h1 className="text-xl font-bold tracking-wide">G.O.A.C.H</h1>
           <button
             onClick={handleLogout}
             className="text-sm text-muted hover:text-foreground transition-colors"

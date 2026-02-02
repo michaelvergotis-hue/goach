@@ -8,13 +8,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Goach",
-  description: "Your personal gym training companion",
+  title: "G.O.A.C.H",
+  description: "Where G.O.A.Ts are made",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Goach",
+    title: "G.O.A.C.H",
   },
 };
 

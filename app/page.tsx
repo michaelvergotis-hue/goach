@@ -50,21 +50,16 @@ export default function LoginPage() {
         <div className="text-center mb-10">
           <div className="w-20 h-20 bg-accent/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <svg
-              className="w-10 h-10 text-accent"
-              fill="none"
-              stroke="currentColor"
+              className="w-12 h-12 text-accent"
               viewBox="0 0 24 24"
+              fill="currentColor"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
-              />
+              {/* Goat head icon */}
+              <path d="M18.5 2c-1.5 0-2.5 1-3 2-.5-1-1.5-2-3-2-2 0-3.5 2-3.5 4 0 1 .5 2 1 2.5-.5.5-1 1.5-1 2.5 0 2 1.5 3.5 3.5 3.5h.5v1.5c0 1.5-1 2.5-2 3-.5.5-1 1-1 2 0 1 1 2 2 2h8c1 0 2-1 2-2 0-1-.5-1.5-1-2-1-.5-2-1.5-2-3v-1.5h.5c2 0 3.5-1.5 3.5-3.5 0-1-.5-2-1-2.5.5-.5 1-1.5 1-2.5 0-2-1.5-4-3.5-4zM8 7c-.5 0-1-.5-1-1s.5-1 1-1 1 .5 1 1-.5 1-1 1zm8 0c-.5 0-1-.5-1-1s.5-1 1-1 1 .5 1 1-.5 1-1 1z"/>
             </svg>
           </div>
-          <h1 className="text-3xl font-bold">Goach</h1>
-          <p className="text-muted mt-2">Your training companion</p>
+          <h1 className="text-3xl font-bold tracking-wide">G.O.A.C.H</h1>
+          <p className="text-muted mt-2">Where G.O.A.Ts are made</p>
         </div>
 
         {/* Login form */}
