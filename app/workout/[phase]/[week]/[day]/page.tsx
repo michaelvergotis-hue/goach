@@ -227,11 +227,12 @@ export default function WorkoutPage() {
     <div className="min-h-screen pb-24">
       {/* Header */}
       <header className="sticky top-0 bg-background/80 backdrop-blur-lg border-b border-border z-10">
-        <div className="px-4 py-4 max-w-3xl mx-auto">
-          <div className="flex items-center justify-between mb-2">
+        <div className="px-4 py-3 max-w-3xl mx-auto">
+          {/* Top row: Back button and saving indicator */}
+          <div className="flex items-center justify-between mb-3">
             <Link
               href="/dashboard"
-              className="flex items-center gap-1 text-muted hover:text-foreground transition-colors"
+              className="flex items-center gap-2 px-3 py-2 -ml-3 rounded-lg text-muted hover:text-foreground hover:bg-card transition-colors"
             >
               <svg
                 className="w-5 h-5"
@@ -246,20 +247,21 @@ export default function WorkoutPage() {
                   d="M15 19l-7-7 7-7"
                 />
               </svg>
-              Back
+              <span className="font-medium">Back</span>
             </Link>
-            {isSaving && (
-              <span className="text-xs text-muted flex items-center gap-1">
-                <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-                Saving...
+            <div className="flex items-center gap-3">
+              {isSaving && (
+                <span className="text-xs text-muted flex items-center gap-1">
+                  <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
+                  Saving...
+                </span>
+              )}
+              <span className="text-xs text-muted bg-card px-2 py-1 rounded-md">
+                {phaseInfo?.name} · Week {week}
               </span>
-            )}
+            </div>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted mb-1">
-            <span>{phaseInfo?.name}</span>
-            <span>-</span>
-            <span>Week {week}</span>
-          </div>
+          {/* Workout title */}
           <h1 className="text-xl font-bold">{workout.name}</h1>
           <p className="text-sm text-muted">{workout.focus}</p>
 
