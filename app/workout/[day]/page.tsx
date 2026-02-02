@@ -30,6 +30,13 @@ export default function WorkoutPage() {
   const [isSaving, setIsSaving] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Share state
+  const [groups, setGroups] = useState<{ id: number; name: string }[]>([]);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [selectedGroups, setSelectedGroups] = useState<number[]>([]);
+  const [isSharing, setIsSharing] = useState(false);
+  const [hasShared, setHasShared] = useState(false);
+
   // Load workout data
   useEffect(() => {
     if (status === "loading") return;
@@ -103,7 +110,60 @@ export default function WorkoutPage() {
     }
 
     loadExistingLogs(workoutData);
+
+    // Fetch groups for sharing
+    fetchGroups(selectedUserId);
   }, [day, status, session, router]);
+
+  const fetchGroups = async (userId: string) => {
+    try {
+      const response = await fetch(`/api/groups?userId=${encodeURIComponent(userId)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setGroups(data);
+      }
+    } catch (error) {
+      console.error("Error fetching groups:", error);
+    }
+  };
+
+  const handleShare = async () => {
+    if (!workout || !userId || selectedGroups.length === 0) return;
+
+    setIsSharing(true);
+    try {
+      for (const groupId of selectedGroups) {
+        await fetch("/api/feed", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            groupId,
+            userId,
+            postType: "workout",
+            content: {
+              workoutName: workout.name,
+              exerciseCount: workout.exercises.length,
+              day,
+            },
+          }),
+        });
+      }
+      setHasShared(true);
+      setShowShareModal(false);
+    } catch (error) {
+      console.error("Error sharing workout:", error);
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const toggleGroup = (groupId: number) => {
+    setSelectedGroups((prev) =>
+      prev.includes(groupId)
+        ? prev.filter((id) => id !== groupId)
+        : [...prev, groupId]
+    );
+  };
 
   // Save progress to database
   const saveProgress = useCallback(async () => {
@@ -244,13 +304,88 @@ export default function WorkoutPage() {
       {/* Finish workout button */}
       {completedCount === workout.exercises.length && (
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border">
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-3xl mx-auto flex gap-3">
+            {groups.length > 0 && !hasShared && (
+              <button
+                onClick={() => setShowShareModal(true)}
+                className="px-4 py-4 bg-card hover:bg-card-hover border border-border text-foreground font-semibold rounded-xl transition-colors flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                Share
+              </button>
+            )}
+            {hasShared && (
+              <div className="px-4 py-4 bg-success/20 text-success font-semibold rounded-xl flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Shared!
+              </div>
+            )}
             <Link
               href="/dashboard"
-              className="block w-full bg-success hover:bg-success/90 text-white font-semibold py-4 rounded-xl text-center transition-colors"
+              className="flex-1 bg-success hover:bg-success/90 text-white font-semibold py-4 rounded-xl text-center transition-colors"
             >
               Workout Complete!
             </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm">
+            <h2 className="text-xl font-bold mb-2">Share Workout</h2>
+            <p className="text-muted text-sm mb-4">
+              Share your {workout.name} completion to:
+            </p>
+
+            <div className="space-y-2 mb-4">
+              {groups.map((group) => (
+                <button
+                  key={group.id}
+                  onClick={() => toggleGroup(group.id)}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-colors ${
+                    selectedGroups.includes(group.id)
+                      ? "bg-accent/10 border-accent"
+                      : "bg-background border-border hover:bg-card-hover"
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                    selectedGroups.includes(group.id)
+                      ? "bg-accent text-white"
+                      : "bg-accent/20 text-accent"
+                  }`}>
+                    {group.name.charAt(0)}
+                  </div>
+                  <span className="flex-1 text-left">{group.name}</span>
+                  {selectedGroups.includes(group.id) && (
+                    <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="flex-1 py-3 bg-background border border-border rounded-xl font-medium hover:bg-card-hover transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleShare}
+                disabled={isSharing || selectedGroups.length === 0}
+                className="flex-1 py-3 bg-accent text-white rounded-xl font-medium hover:bg-accent-hover transition-colors disabled:opacity-50"
+              >
+                {isSharing ? "Sharing..." : "Share"}
+              </button>
+            </div>
           </div>
         </div>
       )}
