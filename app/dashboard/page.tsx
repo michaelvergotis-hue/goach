@@ -108,6 +108,36 @@ export default function DashboardPage() {
       </header>
 
       <main className="px-5 max-w-6xl mx-auto">
+        {/* Desktop Navigation */}
+        <nav className="hidden lg:flex items-center gap-2 mb-6">
+          <Link
+            href="/dashboard"
+            className="px-4 py-2 rounded-lg bg-accent/10 text-accent font-medium text-sm"
+          >
+            Program
+          </Link>
+          <Link
+            href="/feed"
+            className="px-4 py-2 rounded-lg text-muted hover:text-foreground hover:bg-card font-medium text-sm transition-colors"
+          >
+            Feed
+          </Link>
+          <Link
+            href="/history"
+            className="px-4 py-2 rounded-lg text-muted hover:text-foreground hover:bg-card font-medium text-sm transition-colors"
+          >
+            History
+          </Link>
+          {friend.isAdmin && (
+            <Link
+              href="/admin"
+              className="px-4 py-2 rounded-lg text-muted hover:text-foreground hover:bg-card font-medium text-sm transition-colors"
+            >
+              Admin
+            </Link>
+          )}
+        </nav>
+
         {/* Program Selector - Collapsed by default */}
         <div className="mb-6">
           <button
@@ -199,12 +229,10 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Two Column Layout */}
-        <div className="lg:grid lg:grid-cols-12 lg:gap-6">
-          {/* Main Content */}
+        {/* Section Headers Row */}
+        <div className="lg:grid lg:grid-cols-12 lg:gap-6 mb-4">
           <div className="lg:col-span-8">
-            {/* Week Progress Header */}
-            <div className="flex items-end justify-between mb-4">
+            <div className="flex items-end justify-between">
               <div>
                 <h3 className="text-xl font-bold text-foreground">This Week</h3>
                 <p className="text-sm text-muted">{completedDaysInWeek} of {workouts.length} workouts complete</p>
@@ -220,7 +248,13 @@ export default function DashboardPage() {
                 ))}
               </div>
             </div>
+          </div>
+        </div>
 
+        {/* Two Column Layout */}
+        <div className="lg:grid lg:grid-cols-12 lg:gap-6 lg:items-start">
+          {/* Main Content */}
+          <div className="lg:col-span-8">
             {/* Workout Cards */}
             <div className="space-y-3">
               {workouts.map(({ day, workout }, index) => {
@@ -284,12 +318,14 @@ export default function DashboardPage() {
           </div>
 
           {/* Sidebar */}
-          <div className="lg:col-span-4 mt-8 lg:mt-0 space-y-4">
-            <SupplementCard userId={friend.id} />
+          <div className="lg:col-span-4 mt-8 lg:mt-0">
+            <div className="lg:sticky lg:top-6 space-y-4">
+              <SupplementCard userId={friend.id} />
 
-            <div className="p-4 bg-card rounded-2xl border border-border">
-              <h3 className="font-semibold mb-3 text-foreground">Notifications</h3>
-              <NotificationToggle userId={friend.id} />
+              <div className="p-4 bg-card rounded-2xl border border-border">
+                <h3 className="font-semibold mb-3 text-foreground">Notifications</h3>
+                <NotificationToggle userId={friend.id} />
+              </div>
             </div>
           </div>
         </div>
