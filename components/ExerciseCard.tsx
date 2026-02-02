@@ -9,6 +9,7 @@ import { YouTubeEmbed } from "./YouTubeEmbed";
 
 interface ExerciseCardProps {
   exercise: Exercise;
+  userId: string;
   log: ExerciseLog;
   onLogChange: (log: ExerciseLog) => void;
   isExpanded: boolean;
@@ -17,6 +18,7 @@ interface ExerciseCardProps {
 
 export function ExerciseCard({
   exercise,
+  userId,
   log,
   onLogChange,
   isExpanded,
@@ -30,7 +32,7 @@ export function ExerciseCard({
     async function fetchLastLog() {
       setIsLoadingLast(true);
       try {
-        const previousLog = await getLastExerciseLog(exercise.id);
+        const previousLog = await getLastExerciseLog(userId, exercise.id);
         // Only set if it's from a different session (not today)
         const today = new Date().toISOString().split("T")[0];
         if (previousLog && previousLog.completedAt.split("T")[0] !== today) {
@@ -43,7 +45,7 @@ export function ExerciseCard({
     }
 
     fetchLastLog();
-  }, [exercise.id]);
+  }, [userId, exercise.id]);
 
   const handleSetChange = (index: number, value: SetLog) => {
     const newSets = [...log.sets];
@@ -158,7 +160,7 @@ export function ExerciseCard({
               </div>
               {lastLog.notes && (
                 <p className="text-sm text-muted mt-2 italic">
-                  "{lastLog.notes}"
+                  &quot;{lastLog.notes}&quot;
                 </p>
               )}
             </div>

@@ -19,15 +19,25 @@ export interface WorkoutLog {
   exercises: ExerciseLog[];
 }
 
+export interface HistoryEntry {
+  day: string;
+  date: string;
+  exercises_logged: number;
+}
+
 const AUTH_KEY = "goach_authenticated";
+const USER_KEY = "goach_selected_user";
 
 // Save workout log to database
-export async function saveWorkoutLog(log: WorkoutLog): Promise<boolean> {
+export async function saveWorkoutLog(
+  userId: string,
+  log: WorkoutLog
+): Promise<boolean> {
   try {
     const response = await fetch("/api/logs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(log),
+      body: JSON.stringify({ userId, ...log }),
     });
     return response.ok;
   } catch (error) {
@@ -38,11 +48,12 @@ export async function saveWorkoutLog(log: WorkoutLog): Promise<boolean> {
 
 // Get the most recent log for a specific exercise
 export async function getLastExerciseLog(
+  userId: string,
   exerciseId: string
 ): Promise<ExerciseLog | null> {
   try {
     const response = await fetch(
-      `/api/logs?exerciseId=${encodeURIComponent(exerciseId)}&lastOnly=true`
+      `/api/logs?userId=${encodeURIComponent(userId)}&exerciseId=${encodeURIComponent(exerciseId)}&lastOnly=true`
     );
     if (!response.ok) return null;
 
@@ -63,12 +74,13 @@ export async function getLastExerciseLog(
 
 // Get today's workout log for a specific day
 export async function getTodayWorkoutLog(
+  userId: string,
   day: string
 ): Promise<WorkoutLog | null> {
   try {
     const today = new Date().toISOString().split("T")[0];
     const response = await fetch(
-      `/api/logs?day=${encodeURIComponent(day)}&date=${today}`
+      `/api/logs?userId=${encodeURIComponent(userId)}&day=${encodeURIComponent(day)}&date=${today}`
     );
     if (!response.ok) return null;
 
@@ -98,12 +110,16 @@ export async function getTodayWorkoutLog(
 }
 
 // Get workout stats (count of unique workout days)
-export async function getWorkoutStats(): Promise<{
+export async function getWorkoutStats(
+  userId: string
+): Promise<{
   todayCount: number;
   totalSessions: number;
 }> {
   try {
-    const response = await fetch("/api/logs");
+    const response = await fetch(
+      `/api/logs?userId=${encodeURIComponent(userId)}`
+    );
     if (!response.ok) return { todayCount: 0, totalSessions: 0 };
 
     const data = await response.json();
@@ -122,9 +138,13 @@ export async function getWorkoutStats(): Promise<{
 }
 
 // Check if a specific day was completed today
-export async function getDayCompletionStatus(): Promise<Record<string, boolean>> {
+export async function getDayCompletionStatus(
+  userId: string
+): Promise<Record<string, boolean>> {
   try {
-    const response = await fetch("/api/logs");
+    const response = await fetch(
+      `/api/logs?userId=${encodeURIComponent(userId)}`
+    );
     if (!response.ok) return {};
 
     const data = await response.json();
@@ -144,7 +164,29 @@ export async function getDayCompletionStatus(): Promise<Record<string, boolean>>
   }
 }
 
-// Authentication helpers (still uses localStorage - that's fine for simple password gate)
+// Get workout history for a user
+export async function getWorkoutHistory(
+  userId: string
+): Promise<HistoryEntry[]> {
+  try {
+    const response = await fetch(
+      `/api/logs?userId=${encodeURIComponent(userId)}&history=true`
+    );
+    if (!response.ok) return [];
+
+    const data = await response.json();
+    return data.map((row: { day: string; date: string; exercises_logged: string }) => ({
+      day: row.day,
+      date: row.date,
+      exercises_logged: parseInt(row.exercises_logged) || 0,
+    }));
+  } catch (error) {
+    console.error("Error fetching workout history:", error);
+    return [];
+  }
+}
+
+// Authentication helpers
 export function isAuthenticated(): boolean {
   if (typeof window === "undefined") return false;
   return localStorage.getItem(AUTH_KEY) === "true";
@@ -156,4 +198,18 @@ export function setAuthenticated(value: boolean): void {
   } else {
     localStorage.removeItem(AUTH_KEY);
   }
+}
+
+// Selected user helpers
+export function getSelectedUser(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(USER_KEY);
+}
+
+export function setSelectedUser(userId: string): void {
+  localStorage.setItem(USER_KEY, userId);
+}
+
+export function clearSelectedUser(): void {
+  localStorage.removeItem(USER_KEY);
 }

@@ -8,11 +8,15 @@ import {
   setAuthenticated,
   getWorkoutStats,
   getDayCompletionStatus,
+  getSelectedUser,
+  clearSelectedUser,
 } from "@/lib/storage";
 import { getAllDays } from "@/lib/program";
+import { getFriendById, Friend } from "@/lib/friends";
 
 export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
+  const [friend, setFriend] = useState<Friend | null>(null);
   const [workoutDays, setWorkoutDays] = useState<ReturnType<typeof getAllDays>>(
     []
   );
@@ -26,13 +30,27 @@ export default function DashboardPage() {
       return;
     }
 
+    const userId = getSelectedUser();
+    if (!userId) {
+      router.replace("/select");
+      return;
+    }
+
+    const friendData = getFriendById(userId);
+    if (!friendData) {
+      router.replace("/select");
+      return;
+    }
+
+    setFriend(friendData);
+
     async function loadData() {
       setWorkoutDays(getAllDays());
 
       // Fetch completion status and stats from database
       const [completionStatus, workoutStats] = await Promise.all([
-        getDayCompletionStatus(),
-        getWorkoutStats(),
+        getDayCompletionStatus(userId!),
+        getWorkoutStats(userId!),
       ]);
 
       setTodayLogs(completionStatus);
@@ -45,10 +63,16 @@ export default function DashboardPage() {
 
   const handleLogout = () => {
     setAuthenticated(false);
+    clearSelectedUser();
     router.replace("/");
   };
 
-  if (isLoading) {
+  const handleSwitchUser = () => {
+    clearSelectedUser();
+    router.replace("/select");
+  };
+
+  if (isLoading || !friend) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
@@ -60,19 +84,50 @@ export default function DashboardPage() {
     <div className="min-h-screen pb-20">
       {/* Header */}
       <header className="sticky top-0 bg-background/80 backdrop-blur-lg border-b border-border z-10">
-        <div className="px-4 py-4 flex items-center justify-between max-w-lg mx-auto">
-          <h1 className="text-xl font-bold tracking-wide">G.O.A.C.H</h1>
-          <button
-            onClick={handleLogout}
-            className="text-sm text-muted hover:text-foreground transition-colors"
-          >
-            Logout
-          </button>
+        <div className="px-4 py-4 max-w-lg mx-auto">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-accent/20 rounded-full flex items-center justify-center text-accent font-bold">
+                {friend.initials}
+              </div>
+              <div>
+                <h1 className="text-lg font-bold">{friend.name}</h1>
+                <button
+                  onClick={handleSwitchUser}
+                  className="text-xs text-muted hover:text-accent transition-colors"
+                >
+                  Switch user
+                </button>
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="text-sm text-muted hover:text-foreground transition-colors"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
       {/* Content */}
       <main className="px-4 py-6 max-w-lg mx-auto">
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6">
+          <Link
+            href="/dashboard"
+            className="flex-1 py-2 px-4 bg-accent text-white text-center rounded-lg font-medium"
+          >
+            Program
+          </Link>
+          <Link
+            href="/history"
+            className="flex-1 py-2 px-4 bg-card text-muted text-center rounded-lg font-medium hover:bg-card-hover transition-colors"
+          >
+            History
+          </Link>
+        </div>
+
         <div className="mb-6">
           <h2 className="text-2xl font-bold">Select Workout</h2>
           <p className="text-muted mt-1">Choose your training day</p>

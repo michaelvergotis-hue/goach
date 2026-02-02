@@ -10,7 +10,9 @@ import {
   WorkoutLog,
   saveWorkoutLog,
   getTodayWorkoutLog,
+  getSelectedUser,
 } from "@/lib/storage";
+import { getFriendById } from "@/lib/friends";
 import { ExerciseCard } from "@/components/ExerciseCard";
 
 export default function WorkoutPage() {
@@ -19,6 +21,7 @@ export default function WorkoutPage() {
   const router = useRouter();
 
   const [isLoading, setIsLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
   const [workout, setWorkout] = useState<WorkoutDay | null>(null);
   const [exerciseLogs, setExerciseLogs] = useState<Record<string, ExerciseLog>>(
     {}
@@ -34,6 +37,20 @@ export default function WorkoutPage() {
       return;
     }
 
+    const selectedUserId = getSelectedUser();
+    if (!selectedUserId) {
+      router.replace("/select");
+      return;
+    }
+
+    const friend = getFriendById(selectedUserId);
+    if (!friend) {
+      router.replace("/select");
+      return;
+    }
+
+    setUserId(selectedUserId);
+
     const workoutData = getWorkoutDay(day);
     if (!workoutData) {
       router.replace("/dashboard");
@@ -44,7 +61,7 @@ export default function WorkoutPage() {
 
     // Load existing logs from database
     async function loadExistingLogs(workout: WorkoutDay) {
-      const existingLog = await getTodayWorkoutLog(day);
+      const existingLog = await getTodayWorkoutLog(selectedUserId!, day);
 
       const initialLogs: Record<string, ExerciseLog> = {};
       workout.exercises.forEach((exercise) => {
@@ -88,7 +105,7 @@ export default function WorkoutPage() {
 
   // Save progress to database
   const saveProgress = useCallback(async () => {
-    if (!workout || Object.keys(exerciseLogs).length === 0) return;
+    if (!workout || !userId || Object.keys(exerciseLogs).length === 0) return;
 
     setIsSaving(true);
     const today = new Date().toISOString().split("T")[0];
@@ -102,9 +119,9 @@ export default function WorkoutPage() {
       })),
     };
 
-    await saveWorkoutLog(workoutLog);
+    await saveWorkoutLog(userId, workoutLog);
     setIsSaving(false);
-  }, [day, workout, exerciseLogs]);
+  }, [day, workout, userId, exerciseLogs]);
 
   // Auto-save when logs change (debounced)
   useEffect(() => {
@@ -143,7 +160,7 @@ export default function WorkoutPage() {
       }).length
     : 0;
 
-  if (isLoading || !workout) {
+  if (isLoading || !workout || !userId) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
@@ -209,6 +226,7 @@ export default function WorkoutPage() {
           <ExerciseCard
             key={exercise.id}
             exercise={exercise}
+            userId={userId}
             log={exerciseLogs[exercise.id]}
             onLogChange={(log) => handleLogChange(exercise.id, log)}
             isExpanded={expandedExercise === exercise.id}

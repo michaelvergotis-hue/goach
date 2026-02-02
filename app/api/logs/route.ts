@@ -9,16 +9,36 @@ export async function GET(request: NextRequest) {
     const sql = getDb();
     const { searchParams } = new URL(request.url);
 
+    const userId = searchParams.get("userId");
     const day = searchParams.get("day");
     const date = searchParams.get("date");
     const exerciseId = searchParams.get("exerciseId");
     const lastOnly = searchParams.get("lastOnly") === "true";
+    const history = searchParams.get("history") === "true";
+
+    if (!userId) {
+      return NextResponse.json({ error: "userId is required" }, { status: 400 });
+    }
+
+    // Get workout history for a user
+    if (history) {
+      const result = await sql`
+        SELECT DISTINCT day, date,
+          COUNT(DISTINCT exercise_id) as exercises_logged
+        FROM workout_logs
+        WHERE user_id = ${userId}
+        GROUP BY day, date
+        ORDER BY date DESC
+        LIMIT 50
+      `;
+      return NextResponse.json(result);
+    }
 
     // Get last log for a specific exercise (for "last time" display)
     if (exerciseId && lastOnly) {
       const result = await sql`
         SELECT * FROM workout_logs
-        WHERE exercise_id = ${exerciseId}
+        WHERE user_id = ${userId} AND exercise_id = ${exerciseId}
         ORDER BY completed_at DESC
         LIMIT 1
       `;
@@ -29,15 +49,16 @@ export async function GET(request: NextRequest) {
     if (day && date) {
       const result = await sql`
         SELECT * FROM workout_logs
-        WHERE day = ${day} AND date = ${date}
+        WHERE user_id = ${userId} AND day = ${day} AND date = ${date}
         ORDER BY id
       `;
       return NextResponse.json(result);
     }
 
-    // Get all logs (for stats)
+    // Get all logs summary (for stats)
     const result = await sql`
       SELECT DISTINCT day, date FROM workout_logs
+      WHERE user_id = ${userId}
       ORDER BY date DESC
       LIMIT 100
     `;
@@ -57,9 +78,9 @@ export async function POST(request: NextRequest) {
     const sql = getDb();
     const body = await request.json();
 
-    const { day, date, exercises } = body;
+    const { userId, day, date, exercises } = body;
 
-    if (!day || !date || !exercises) {
+    if (!userId || !day || !date || !exercises) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -69,9 +90,9 @@ export async function POST(request: NextRequest) {
     // Upsert each exercise log
     for (const exercise of exercises) {
       await sql`
-        INSERT INTO workout_logs (day, date, exercise_id, sets, notes, completed_at)
-        VALUES (${day}, ${date}, ${exercise.exerciseId}, ${JSON.stringify(exercise.sets)}, ${exercise.notes || ""}, NOW())
-        ON CONFLICT (day, date, exercise_id)
+        INSERT INTO workout_logs (user_id, day, date, exercise_id, sets, notes, completed_at)
+        VALUES (${userId}, ${day}, ${date}, ${exercise.exerciseId}, ${JSON.stringify(exercise.sets)}, ${exercise.notes || ""}, NOW())
+        ON CONFLICT (user_id, day, date, exercise_id)
         DO UPDATE SET
           sets = ${JSON.stringify(exercise.sets)},
           notes = ${exercise.notes || ""},

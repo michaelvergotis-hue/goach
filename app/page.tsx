@@ -16,7 +16,7 @@ export default function LoginPage() {
   useEffect(() => {
     // Check if already authenticated
     if (isAuthenticated()) {
-      router.replace("/dashboard");
+      router.replace("/select");
     } else {
       setIsLoading(false);
     }
@@ -28,7 +28,7 @@ export default function LoginPage() {
 
     if (password === APP_PASSWORD) {
       setAuthenticated(true);
-      router.replace("/dashboard");
+      router.replace("/select");
     } else {
       setError("Wrong password");
       setPassword("");
