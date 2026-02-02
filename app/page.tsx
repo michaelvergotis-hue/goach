@@ -48,18 +48,12 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo/Title */}
         <div className="text-center mb-10">
-          <div className="w-20 h-20 bg-accent/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <svg
-              className="w-12 h-12 text-accent"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
-              {/* Goat head icon */}
-              <path d="M18.5 2c-1.5 0-2.5 1-3 2-.5-1-1.5-2-3-2-2 0-3.5 2-3.5 4 0 1 .5 2 1 2.5-.5.5-1 1.5-1 2.5 0 2 1.5 3.5 3.5 3.5h.5v1.5c0 1.5-1 2.5-2 3-.5.5-1 1-1 2 0 1 1 2 2 2h8c1 0 2-1 2-2 0-1-.5-1.5-1-2-1-.5-2-1.5-2-3v-1.5h.5c2 0 3.5-1.5 3.5-3.5 0-1-.5-2-1-2.5.5-.5 1-1.5 1-2.5 0-2-1.5-4-3.5-4zM8 7c-.5 0-1-.5-1-1s.5-1 1-1 1 .5 1 1-.5 1-1 1zm8 0c-.5 0-1-.5-1-1s.5-1 1-1 1 .5 1 1-.5 1-1 1z"/>
-            </svg>
-          </div>
-          <h1 className="text-3xl font-bold tracking-wide">G.O.A.C.H</h1>
-          <p className="text-muted mt-2">Where G.O.A.Ts are made</p>
+          <img
+            src="/logo.png"
+            alt="G.O.A.C.H"
+            className="w-40 h-40 mx-auto mb-2 object-contain"
+          />
+          <p className="text-muted text-lg">Where GOATs are made</p>
         </div>
 
         {/* Login form */}
