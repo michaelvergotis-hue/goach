@@ -51,7 +51,7 @@ export default function LoginPage() {
           <img
             src="/logo.png"
             alt="G.O.A.C.H"
-            className="w-40 h-40 mx-auto mb-2 object-contain"
+            className="w-80 h-80 mx-auto mb-2 object-contain"
           />
           <p className="text-muted text-lg">Where GOATs are made</p>
         </div>
