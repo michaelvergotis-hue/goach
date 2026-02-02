@@ -104,10 +104,23 @@ export function ExerciseCard({
   // Check if a set is a PR (beats previous best for that rep count)
   // Only track PRs for 1, 3, and 5 rep sets
   const PR_REP_COUNTS = [1, 3, 5];
+
+  // Find the best weight for each rep count in current session
+  const sessionBests: Record<number, number> = {};
+  for (const s of log.sets) {
+    if (s.weight > 0 && s.reps > 0 && PR_REP_COUNTS.includes(s.reps)) {
+      if (!sessionBests[s.reps] || s.weight > sessionBests[s.reps]) {
+        sessionBests[s.reps] = s.weight;
+      }
+    }
+  }
+
   const isSetPR = (set: SetLog): boolean => {
     if (set.weight <= 0 || set.reps <= 0) return false;
     // Only consider 1RM, 3RM, and 5RM as PRs
     if (!PR_REP_COUNTS.includes(set.reps)) return false;
+    // Must be the best in THIS session for this rep count
+    if (set.weight < sessionBests[set.reps]) return false;
     const previousBest = prRecords[set.reps];
     // It's a PR if there's no previous record, or this beats it
     return !previousBest || set.weight > previousBest;
