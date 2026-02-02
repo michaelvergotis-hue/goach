@@ -172,7 +172,7 @@ export default function WorkoutPage() {
     <div className="min-h-screen pb-24">
       {/* Header */}
       <header className="sticky top-0 bg-background/80 backdrop-blur-lg border-b border-border z-10">
-        <div className="px-4 py-4 max-w-lg mx-auto">
+        <div className="px-4 py-4 max-w-3xl mx-auto">
           <div className="flex items-center justify-between mb-2">
             <Link
               href="/dashboard"
@@ -221,7 +221,7 @@ export default function WorkoutPage() {
       </header>
 
       {/* Exercises */}
-      <main className="px-4 py-4 max-w-lg mx-auto space-y-3">
+      <main className="px-4 py-4 max-w-3xl mx-auto space-y-3">
         {workout.exercises.map((exercise) => (
           <ExerciseCard
             key={exercise.id}
@@ -242,7 +242,7 @@ export default function WorkoutPage() {
       {/* Finish workout button */}
       {completedCount === workout.exercises.length && (
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border">
-          <div className="max-w-lg mx-auto">
+          <div className="max-w-3xl mx-auto">
             <Link
               href="/dashboard"
               className="block w-full bg-success hover:bg-success/90 text-white font-semibold py-4 rounded-xl text-center transition-colors"

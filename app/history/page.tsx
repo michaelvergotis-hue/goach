@@ -92,7 +92,7 @@ export default function HistoryPage() {
     <div className="min-h-screen pb-20">
       {/* Header */}
       <header className="sticky top-0 bg-background/80 backdrop-blur-lg border-b border-border z-10">
-        <div className="px-4 py-4 max-w-lg mx-auto">
+        <div className="px-4 py-4 max-w-5xl mx-auto">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-accent/20 rounded-full flex items-center justify-center text-accent font-bold">
@@ -119,9 +119,9 @@ export default function HistoryPage() {
       </header>
 
       {/* Content */}
-      <main className="px-4 py-6 max-w-lg mx-auto">
+      <main className="px-4 py-6 max-w-5xl mx-auto">
         {/* Tabs */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 max-w-lg">
           <Link
             href="/dashboard"
             className="flex-1 py-2 px-4 bg-card text-muted text-center rounded-lg font-medium hover:bg-card-hover transition-colors"
@@ -141,7 +141,7 @@ export default function HistoryPage() {
           <p className="text-muted mt-1">Your past sessions</p>
         </div>
 
-        {/* History list */}
+        {/* History list - responsive grid */}
         {history.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted">No workouts logged yet</p>
@@ -153,7 +153,7 @@ export default function HistoryPage() {
             </Link>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {history.map((entry, index) => {
               const workout = getWorkoutDay(entry.day);
               return (

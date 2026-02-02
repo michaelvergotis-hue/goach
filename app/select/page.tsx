@@ -32,40 +32,41 @@ export default function SelectFriendPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
+      <div className="w-full max-w-sm md:max-w-2xl">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold">Who&apos;s Training?</h1>
           <p className="text-muted mt-2">Select your profile</p>
         </div>
 
-        <div className="space-y-3">
-          {/* Admin link for coach */}
-          <Link
-            href="/admin"
-            className="w-full flex items-center gap-4 bg-accent/10 hover:bg-accent/20 border border-accent/30 rounded-xl p-4 transition-colors"
-          >
-            <div className="w-12 h-12 bg-accent/20 rounded-full flex items-center justify-center text-accent">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-            </div>
-            <span className="text-lg font-semibold text-accent">Send Reminder</span>
-            <svg
-              className="w-5 h-5 text-accent ml-auto"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5l7 7-7 7"
-              />
+        {/* Admin link for coach */}
+        <Link
+          href="/admin"
+          className="w-full flex items-center gap-4 bg-accent/10 hover:bg-accent/20 border border-accent/30 rounded-xl p-4 transition-colors mb-4"
+        >
+          <div className="w-12 h-12 bg-accent/20 rounded-full flex items-center justify-center text-accent">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
             </svg>
-          </Link>
+          </div>
+          <span className="text-lg font-semibold text-accent">Send Reminder</span>
+          <svg
+            className="w-5 h-5 text-accent ml-auto"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
+        </Link>
 
+        {/* Friends grid - responsive */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {friends.map((friend) => (
             <button
               key={friend.id}

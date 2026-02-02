@@ -80,7 +80,7 @@ export default function AdminPage() {
     <div className="min-h-screen pb-20">
       {/* Header */}
       <header className="sticky top-0 bg-background/80 backdrop-blur-lg border-b border-border z-10">
-        <div className="px-4 py-4 max-w-lg mx-auto flex items-center justify-between">
+        <div className="px-4 py-4 max-w-2xl mx-auto flex items-center justify-between">
           <Link
             href="/select"
             className="flex items-center gap-1 text-muted hover:text-foreground transition-colors"
@@ -106,7 +106,7 @@ export default function AdminPage() {
       </header>
 
       {/* Content */}
-      <main className="px-4 py-6 max-w-lg mx-auto">
+      <main className="px-4 py-6 max-w-2xl mx-auto">
         {/* Select recipient */}
         <div className="mb-6">
           <label className="block text-sm text-muted mb-2">Send to</label>
