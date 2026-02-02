@@ -13,7 +13,7 @@ export const friends: Friend[] = [
   { id: "sam-d", name: "Sam D", initials: "SD", email: "sam.demetriou@gmail.com" },
   { id: "julian-z", name: "Julian Z", initials: "JZ", email: "" }, // TODO: Add email
   { id: "michael-v", name: "Michael V", initials: "MV", isAdmin: true, email: "michaelvergotis@gmail.com" },
-  { id: "nick-c", name: "Nick Condo", initials: "NC", email: "" }, // TODO: Add email
+  { id: "nick-c", name: "Nick Condo", initials: "NC", email: "nicholas.condoleon@gmail.com" },
 ];
 
 // Get friend by email (for auto-login)

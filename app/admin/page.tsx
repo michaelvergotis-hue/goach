@@ -33,6 +33,7 @@ export default function AdminPage() {
   const [groupName, setGroupName] = useState("");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [isSavingGroup, setIsSavingGroup] = useState(false);
+  const [groupError, setGroupError] = useState<string | null>(null);
 
   const router = useRouter();
 
@@ -100,6 +101,7 @@ export default function AdminPage() {
     setEditingGroup(null);
     setGroupName("");
     setSelectedMembers([]);
+    setGroupError(null);
     setShowGroupModal(true);
   };
 
@@ -114,10 +116,12 @@ export default function AdminPage() {
     if (!groupName.trim()) return;
 
     setIsSavingGroup(true);
+    setGroupError(null);
     try {
+      let response;
       if (editingGroup) {
         // Update members
-        await fetch("/api/groups", {
+        response = await fetch("/api/groups", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -127,7 +131,7 @@ export default function AdminPage() {
         });
       } else {
         // Create new group
-        await fetch("/api/groups", {
+        response = await fetch("/api/groups", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -137,10 +141,18 @@ export default function AdminPage() {
           }),
         });
       }
+
+      if (!response.ok) {
+        const data = await response.json();
+        setGroupError(data.error || "Failed to save group");
+        return;
+      }
+
       await fetchGroups();
       setShowGroupModal(false);
     } catch (error) {
       console.error("Error saving group:", error);
+      setGroupError("Network error. Please try again.");
     } finally {
       setIsSavingGroup(false);
     }
@@ -433,6 +445,12 @@ export default function AdminPage() {
                 ))}
               </div>
             </div>
+
+            {groupError && (
+              <div className="mb-4 p-3 bg-red-500/20 text-red-400 rounded-lg text-sm">
+                {groupError}
+              </div>
+            )}
 
             <div className="flex gap-3">
               <button
