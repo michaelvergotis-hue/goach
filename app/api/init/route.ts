@@ -3,8 +3,16 @@ import { initializeDatabase, migrateDatabase } from "@/lib/db";
 
 export const runtime = "edge";
 
-// POST - Initialize database schema
+// GET/POST - Initialize database schema
+export async function GET() {
+  return initDb();
+}
+
 export async function POST() {
+  return initDb();
+}
+
+async function initDb() {
   try {
     // Run migration first (for existing databases)
     await migrateDatabase();
