@@ -177,6 +177,23 @@ export async function setWorkoutSessionStatus(
   }
 }
 
+// Revert a workout status (undo complete/missed)
+export async function revertWorkoutSessionStatus(
+  userId: string,
+  day: string
+): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `/api/workout-status?userId=${encodeURIComponent(userId)}&day=${encodeURIComponent(day)}`,
+      { method: "DELETE" }
+    );
+    return response.ok;
+  } catch (error) {
+    console.error("Error reverting workout status:", error);
+    return false;
+  }
+}
+
 // Legacy function for compatibility - now uses session status
 export async function getDayCompletionStatus(
   userId: string

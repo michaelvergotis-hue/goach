@@ -17,7 +17,7 @@ interface Group {
 export default function AdminPage() {
   const { status } = useSession();
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"reminders" | "groups">("reminders");
+  const [activeTab, setActiveTab] = useState<"reminders" | "groups" | "data">("reminders");
 
   // Reminders state
   const [selectedUser, setSelectedUser] = useState<string>("all");
@@ -34,6 +34,11 @@ export default function AdminPage() {
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [isSavingGroup, setIsSavingGroup] = useState(false);
   const [groupError, setGroupError] = useState<string | null>(null);
+
+  // Data management state
+  const [clearDataUser, setClearDataUser] = useState<string>("");
+  const [isClearing, setIsClearing] = useState(false);
+  const [clearResult, setClearResult] = useState<string | null>(null);
 
   const router = useRouter();
 
@@ -177,6 +182,39 @@ export default function AdminPage() {
     );
   };
 
+  const handleClearData = async () => {
+    if (!clearDataUser) {
+      setClearResult("Please select a user");
+      return;
+    }
+
+    if (!confirm(`Clear ALL workout data for ${friends.find(f => f.id === clearDataUser)?.name || clearDataUser}? This cannot be undone.`)) {
+      return;
+    }
+
+    setIsClearing(true);
+    setClearResult(null);
+
+    try {
+      const response = await fetch(`/api/clear-data?userId=${encodeURIComponent(clearDataUser)}&type=all`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setClearResult(`Data cleared for ${friends.find(f => f.id === clearDataUser)?.name || clearDataUser}`);
+      } else {
+        setClearResult(data.error || "Failed to clear data");
+      }
+    } catch (error) {
+      setClearResult("Error clearing data");
+      console.error(error);
+    }
+
+    setIsClearing(false);
+  };
+
   const quickMessages = [
     "Time to train! Get to the gym!",
     "Rest day is over. Let's go!",
@@ -234,6 +272,16 @@ export default function AdminPage() {
             }`}
           >
             Groups
+          </button>
+          <button
+            onClick={() => setActiveTab("data")}
+            className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors ${
+              activeTab === "data"
+                ? "bg-accent text-white"
+                : "bg-card text-muted hover:bg-card-hover"
+            }`}
+          >
+            Data
           </button>
         </div>
 
@@ -390,6 +438,62 @@ export default function AdminPage() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Data Tab */}
+        {activeTab === "data" && (
+          <div>
+            <div className="bg-card border border-border rounded-xl p-6">
+              <h3 className="font-semibold mb-1">Clear Workout Data</h3>
+              <p className="text-sm text-muted mb-4">
+                Remove all workout logs and completion status for a user. Use this to reset after program changes.
+              </p>
+
+              <div className="mb-4">
+                <label className="block text-sm text-muted mb-2">Select User</label>
+                <select
+                  value={clearDataUser}
+                  onChange={(e) => setClearDataUser(e.target.value)}
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 focus:outline-none focus:border-accent"
+                >
+                  <option value="">Choose a user...</option>
+                  {friends.map((friend) => (
+                    <option key={friend.id} value={friend.id}>
+                      {friend.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {clearResult && (
+                <div className={`mb-4 p-3 rounded-lg text-sm ${
+                  clearResult.includes("cleared") ? "bg-success/20 text-success" : "bg-red-500/20 text-red-400"
+                }`}>
+                  {clearResult}
+                </div>
+              )}
+
+              <button
+                onClick={handleClearData}
+                disabled={isClearing || !clearDataUser}
+                className="w-full bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-semibold py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                {isClearing ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Clearing...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Clear All Data
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         )}
       </div>

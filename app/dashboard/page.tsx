@@ -7,6 +7,7 @@ import Link from "next/link";
 import {
   getWorkoutSessionStatuses,
   setWorkoutSessionStatus,
+  revertWorkoutSessionStatus,
   getWorkoutHistory,
   HistoryEntry,
   ExerciseLog,
@@ -250,6 +251,22 @@ export default function DashboardPage() {
         ...prev,
         [key]: { status: "missed", date: new Date().toISOString().split("T")[0] }
       }));
+    }
+  };
+
+  const handleRevertWorkout = async (day: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!friend) return;
+
+    const key = `p${selectedPhase}-w${selectedWeek}-d${day}`;
+    const success = await revertWorkoutSessionStatus(friend.id, key);
+    if (success) {
+      setSessionStatuses(prev => {
+        const newStatuses = { ...prev };
+        delete newStatuses[key];
+        return newStatuses;
+      });
     }
   };
 
@@ -571,6 +588,19 @@ export default function DashboardPage() {
                             >
                               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                              </svg>
+                            </button>
+                          )}
+
+                          {/* Revert button - show for completed/missed workouts */}
+                          {isDone && (
+                            <button
+                              onClick={(e) => handleRevertWorkout(day, e)}
+                              className="p-2 text-muted hover:text-accent hover:bg-background rounded-lg transition-colors"
+                              title="Revert this workout"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                               </svg>
                             </button>
                           )}
