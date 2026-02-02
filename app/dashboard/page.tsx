@@ -9,7 +9,9 @@ import {
   setWorkoutSessionStatus,
   getWorkoutHistory,
   HistoryEntry,
+  ExerciseLog,
 } from "@/lib/storage";
+import { getExerciseName } from "@/lib/program";
 import { getAllPhases, getPhaseWorkouts, getWorkoutDay, getPhase } from "@/lib/program";
 import { getFriendById, Friend, friends } from "@/lib/friends";
 import { NotificationToggle } from "@/components/NotificationToggle";
@@ -68,6 +70,9 @@ export default function DashboardPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [expandedHistoryKey, setExpandedHistoryKey] = useState<string | null>(null);
+  const [historyDetails, setHistoryDetails] = useState<ExerciseLog[] | null>(null);
+  const [loadingHistoryDetails, setLoadingHistoryDetails] = useState(false);
 
   const phases = getAllPhases();
   const currentPhase = phases.find(p => p.id === selectedPhase);
@@ -145,6 +150,47 @@ export default function DashboardPage() {
       }
     } catch (error) {
       console.error("Error fetching posts:", error);
+    }
+  };
+
+  const toggleHistoryDetails = async (entry: HistoryEntry) => {
+    const key = `${entry.day}-${entry.date}`;
+
+    if (expandedHistoryKey === key) {
+      // Collapse if already expanded
+      setExpandedHistoryKey(null);
+      setHistoryDetails(null);
+      return;
+    }
+
+    // Expand and fetch details
+    setExpandedHistoryKey(key);
+    setLoadingHistoryDetails(true);
+    setHistoryDetails(null);
+
+    try {
+      const response = await fetch(
+        `/api/logs?userId=${encodeURIComponent(friend!.id)}&day=${encodeURIComponent(entry.day)}&date=${entry.date}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        const exercises: ExerciseLog[] = data.map((row: {
+          exercise_id: string;
+          sets: string | { weight: number; reps: number }[];
+          notes: string;
+          completed_at: string;
+        }) => ({
+          exerciseId: row.exercise_id,
+          sets: typeof row.sets === "string" ? JSON.parse(row.sets) : row.sets,
+          notes: row.notes || "",
+          completedAt: row.completed_at,
+        }));
+        setHistoryDetails(exercises);
+      }
+    } catch (error) {
+      console.error("Error fetching history details:", error);
+    } finally {
+      setLoadingHistoryDetails(false);
     }
   };
 
@@ -622,25 +668,77 @@ export default function DashboardPage() {
                     </button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-4">
                     {history.map((entry, index) => {
                       const parsed = parseDayKey(entry.day);
                       const workout = parsed ? getWorkoutDay(parsed.phase, parsed.day) : null;
                       const phase = parsed ? getPhase(parsed.phase) : null;
+                      const key = `${entry.day}-${entry.date}`;
+                      const isExpanded = expandedHistoryKey === key;
+
                       return (
-                        <div key={`${entry.day}-${entry.date}-${index}`} className="bg-card border border-border rounded-2xl p-4">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm text-muted">{formatDate(entry.date)}</p>
-                              {parsed && phase && <p className="text-xs text-accent mt-1">{phase.name} - Week {parsed.week}</p>}
-                              <h3 className="font-semibold text-lg mt-1">{workout?.name || `Day ${parsed?.day || entry.day}`}</h3>
-                              <p className="text-sm text-muted">{workout?.focus || "Workout"}</p>
+                        <div key={`${entry.day}-${entry.date}-${index}`} className="bg-card border border-border rounded-2xl overflow-hidden">
+                          <button
+                            onClick={() => toggleHistoryDetails(entry)}
+                            className="w-full p-4 text-left hover:bg-card-hover transition-colors"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-muted">{formatDate(entry.date)}</p>
+                                {parsed && phase && <p className="text-xs text-accent mt-1">{phase.name} - Week {parsed.week}</p>}
+                                <h3 className="font-semibold text-lg mt-1">{workout?.name || `Day ${parsed?.day || entry.day}`}</h3>
+                                <p className="text-sm text-muted">{workout?.focus || "Workout"}</p>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <div className="text-right">
+                                  <p className="text-2xl font-bold text-accent">{entry.exercises_logged}</p>
+                                  <p className="text-xs text-muted">exercises</p>
+                                </div>
+                                <svg
+                                  className={`w-5 h-5 text-muted transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </div>
                             </div>
-                            <div className="text-right">
-                              <p className="text-2xl font-bold text-accent">{entry.exercises_logged}</p>
-                              <p className="text-xs text-muted">exercises</p>
+                          </button>
+
+                          {/* Expanded exercise details */}
+                          {isExpanded && (
+                            <div className="border-t border-border p-4 bg-background/50">
+                              {loadingHistoryDetails ? (
+                                <div className="flex justify-center py-4">
+                                  <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                                </div>
+                              ) : historyDetails && historyDetails.length > 0 ? (
+                                <div className="space-y-3">
+                                  {historyDetails.map((exercise, i) => (
+                                    <div key={i} className="bg-card rounded-xl p-3">
+                                      <h4 className="font-medium text-sm mb-2">{getExerciseName(exercise.exerciseId)}</h4>
+                                      <div className="flex flex-wrap gap-2">
+                                        {exercise.sets.map((set, j) => (
+                                          <span
+                                            key={j}
+                                            className="text-xs bg-background px-2 py-1 rounded"
+                                          >
+                                            {set.weight}kg × {set.reps}
+                                          </span>
+                                        ))}
+                                      </div>
+                                      {exercise.notes && (
+                                        <p className="text-xs text-muted mt-2 italic">&quot;{exercise.notes}&quot;</p>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-sm text-muted text-center py-4">No exercise data found</p>
+                              )}
                             </div>
-                          </div>
+                          )}
                         </div>
                       );
                     })}

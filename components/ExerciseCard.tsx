@@ -93,13 +93,13 @@ export function ExerciseCard({
   const completedSets = log.sets.filter((s) => s.weight > 0 && s.reps > 0).length;
   const isComplete = completedSets >= exercise.sets;
 
-  // Find best set (highest weight × reps)
+  // Find best set by estimated 1RM (for PR sharing)
   const bestSet = log.sets.reduce<SetLog | null>((best, set) => {
     if (set.weight <= 0 || set.reps <= 0) return best;
     if (!best) return set;
-    const currentScore = set.weight * set.reps;
-    const bestScore = best.weight * best.reps;
-    return currentScore > bestScore ? set : best;
+    const current1RM = calculate1RM(set.weight, set.reps);
+    const best1RMScore = calculate1RM(best.weight, best.reps);
+    return current1RM > best1RMScore ? set : best;
   }, null);
 
   const toggleGroup = (groupId: number) => {
@@ -276,6 +276,7 @@ export function ExerciseCard({
                 >
                   <span>🏆</span>
                   Share {formatWeight(bestSet.weight)}kg × {bestSet.reps} as PR
+                  <span className="text-xs opacity-70">({formatWeight(calculate1RM(bestSet.weight, bestSet.reps))}kg e1RM)</span>
                 </button>
               )}
             </div>
