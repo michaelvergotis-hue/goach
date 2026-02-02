@@ -77,6 +77,11 @@ export default function DashboardPage() {
   const [historyPhase, setHistoryPhase] = useState<string | "all">("all");
   const [historyWeek, setHistoryWeek] = useState<number | "all">("all");
 
+  // Feed post expansion state
+  const [expandedFeedPost, setExpandedFeedPost] = useState<number | null>(null);
+  const [feedPostDetails, setFeedPostDetails] = useState<ExerciseLog[] | null>(null);
+  const [loadingFeedDetails, setLoadingFeedDetails] = useState(false);
+
   const phases = getAllPhases();
   const currentPhase = phases.find(p => p.id === selectedPhase);
   const workouts = getPhaseWorkouts(selectedPhase);
@@ -194,6 +199,49 @@ export default function DashboardPage() {
       console.error("Error fetching history details:", error);
     } finally {
       setLoadingHistoryDetails(false);
+    }
+  };
+
+  const toggleFeedPostDetails = async (post: FeedPost) => {
+    if (post.post_type !== "workout" || !post.content.day) return;
+
+    if (expandedFeedPost === post.id) {
+      // Collapse if already expanded
+      setExpandedFeedPost(null);
+      setFeedPostDetails(null);
+      return;
+    }
+
+    // Expand and fetch details
+    setExpandedFeedPost(post.id);
+    setLoadingFeedDetails(true);
+    setFeedPostDetails(null);
+
+    try {
+      // Extract date from created_at
+      const postDate = post.created_at.split("T")[0];
+      const response = await fetch(
+        `/api/logs?userId=${encodeURIComponent(post.user_id)}&day=${encodeURIComponent(post.content.day)}&date=${postDate}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        const exercises: ExerciseLog[] = data.map((row: {
+          exercise_id: string;
+          sets: string | { weight: number; reps: number }[];
+          notes: string;
+          completed_at: string;
+        }) => ({
+          exerciseId: row.exercise_id,
+          sets: typeof row.sets === "string" ? JSON.parse(row.sets) : row.sets,
+          notes: row.notes || "",
+          completedAt: row.completed_at,
+        }));
+        setFeedPostDetails(exercises);
+      }
+    } catch (error) {
+      console.error("Error fetching feed post details:", error);
+    } finally {
+      setLoadingFeedDetails(false);
     }
   };
 
@@ -336,6 +384,7 @@ export default function DashboardPage() {
     }
 
     if (post.post_type === "workout") {
+      const isExpanded = expandedFeedPost === post.id;
       return (
         <div className="flex gap-2">
           <div className="w-8 h-8 bg-success/20 rounded-full flex items-center justify-center text-success text-xs flex-shrink-0">
@@ -344,10 +393,54 @@ export default function DashboardPage() {
             </svg>
           </div>
           <div className="flex-1">
-            <div className="bg-success/10 border border-success/20 rounded-xl p-3">
-              <p className="text-sm"><span className="font-semibold">{userName}</span> completed <span className="font-semibold">{post.content.workoutName}</span></p>
-              <p className="text-xs text-muted mt-1">{post.content.exerciseCount} exercises</p>
-            </div>
+            <button
+              onClick={() => toggleFeedPostDetails(post)}
+              className="w-full text-left bg-success/10 border border-success/20 rounded-xl p-3 hover:bg-success/20 transition-colors"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm"><span className="font-semibold">{userName}</span> completed <span className="font-semibold">{post.content.workoutName}</span></p>
+                  <p className="text-xs text-muted mt-1">{post.content.exerciseCount} exercises</p>
+                </div>
+                <svg
+                  className={`w-4 h-4 text-muted transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </button>
+
+            {/* Expanded workout details */}
+            {isExpanded && (
+              <div className="mt-2 bg-card border border-border rounded-xl p-3">
+                {loadingFeedDetails ? (
+                  <div className="flex justify-center py-3">
+                    <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : feedPostDetails && feedPostDetails.length > 0 ? (
+                  <div className="space-y-2">
+                    {feedPostDetails.map((exercise, i) => (
+                      <div key={i} className="bg-background rounded-lg p-2">
+                        <p className="font-medium text-sm">{getExerciseName(exercise.exerciseId)}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {exercise.sets.filter(s => s.weight > 0 && s.reps > 0).map((set, j) => (
+                            <span key={j} className="text-xs bg-card px-2 py-0.5 rounded">
+                              {set.weight}kg × {set.reps}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted text-center py-2">No details available</p>
+                )}
+              </div>
+            )}
+
             <p className="text-xs text-muted mt-1">{formatTime(post.created_at)}</p>
           </div>
         </div>
