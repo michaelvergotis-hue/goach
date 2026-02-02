@@ -43,11 +43,11 @@ export default function WorkoutPage() {
     setWorkout(workoutData);
 
     // Load existing logs from database
-    async function loadExistingLogs() {
+    async function loadExistingLogs(workout: WorkoutDay) {
       const existingLog = await getTodayWorkoutLog(day);
 
       const initialLogs: Record<string, ExerciseLog> = {};
-      workoutData.exercises.forEach((exercise) => {
+      workout.exercises.forEach((exercise) => {
         const existingExerciseLog = existingLog?.exercises.find(
           (e) => e.exerciseId === exercise.id
         );
@@ -70,7 +70,7 @@ export default function WorkoutPage() {
       setExerciseLogs(initialLogs);
 
       // Auto-expand first incomplete exercise
-      const firstIncomplete = workoutData.exercises.find((ex) => {
+      const firstIncomplete = workout.exercises.find((ex) => {
         const log = initialLogs[ex.id];
         return (
           !log || log.sets.filter((s) => s.weight > 0 && s.reps > 0).length < ex.sets
@@ -83,7 +83,7 @@ export default function WorkoutPage() {
       setIsLoading(false);
     }
 
-    loadExistingLogs();
+    loadExistingLogs(workoutData);
   }, [day, router]);
 
   // Save progress to database
