@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
-import { getWorkoutDay, WorkoutDay } from "@/lib/program";
+import { getWorkoutDay, WorkoutDay, getPhase } from "@/lib/program";
 import {
   ExerciseLog,
   WorkoutLog,
@@ -16,13 +16,19 @@ import { ExerciseCard } from "@/components/ExerciseCard";
 
 export default function WorkoutPage() {
   const params = useParams();
+  const phase = params.phase as string;
+  const week = params.week as string;
   const day = params.day as string;
   const router = useRouter();
   const { data: session, status } = useSession();
 
+  // Composite day key for storage: p{phase}-w{week}-d{day}
+  const dayKey = `p${phase}-w${week}-d${day}`;
+
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [workout, setWorkout] = useState<WorkoutDay | null>(null);
+  const [phaseInfo, setPhaseInfo] = useState<{ name: string; description: string } | null>(null);
   const [exerciseLogs, setExerciseLogs] = useState<Record<string, ExerciseLog>>(
     {}
   );
@@ -60,17 +66,22 @@ export default function WorkoutPage() {
 
     setUserId(selectedUserId);
 
-    const workoutData = getWorkoutDay(day);
+    const workoutData = getWorkoutDay(phase, day);
     if (!workoutData) {
       router.replace("/dashboard");
       return;
+    }
+
+    const phaseData = getPhase(phase);
+    if (phaseData) {
+      setPhaseInfo({ name: phaseData.name, description: phaseData.description });
     }
 
     setWorkout(workoutData);
 
     // Load existing logs from database
     async function loadExistingLogs(workout: WorkoutDay) {
-      const existingLog = await getTodayWorkoutLog(selectedUserId!, day);
+      const existingLog = await getTodayWorkoutLog(selectedUserId!, dayKey);
 
       const initialLogs: Record<string, ExerciseLog> = {};
       workout.exercises.forEach((exercise) => {
@@ -113,7 +124,7 @@ export default function WorkoutPage() {
 
     // Fetch groups for sharing
     fetchGroups(selectedUserId);
-  }, [day, status, session, router]);
+  }, [phase, week, day, dayKey, status, session, router]);
 
   const fetchGroups = async (userId: string) => {
     try {
@@ -143,7 +154,9 @@ export default function WorkoutPage() {
             content: {
               workoutName: workout.name,
               exerciseCount: workout.exercises.length,
-              day,
+              phase: phaseInfo?.name || `Phase ${phase}`,
+              week: `Week ${week}`,
+              day: dayKey,
             },
           }),
         });
@@ -173,7 +186,7 @@ export default function WorkoutPage() {
     const today = new Date().toISOString().split("T")[0];
 
     const workoutLog: WorkoutLog = {
-      day,
+      day: dayKey,
       date: today,
       exercises: Object.values(exerciseLogs).map((log) => ({
         ...log,
@@ -183,7 +196,7 @@ export default function WorkoutPage() {
 
     await saveWorkoutLog(userId, workoutLog);
     setIsSaving(false);
-  }, [day, workout, userId, exerciseLogs]);
+  }, [dayKey, workout, userId, exerciseLogs]);
 
   // Auto-save when logs change (debounced)
   useEffect(() => {
@@ -261,6 +274,11 @@ export default function WorkoutPage() {
                 Saving...
               </span>
             )}
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted mb-1">
+            <span>{phaseInfo?.name}</span>
+            <span>-</span>
+            <span>Week {week}</span>
           </div>
           <h1 className="text-xl font-bold">{workout.name}</h1>
           <p className="text-sm text-muted">{workout.focus}</p>

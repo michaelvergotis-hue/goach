@@ -9,7 +9,17 @@ import {
   HistoryEntry,
 } from "@/lib/storage";
 import { getFriendById, Friend } from "@/lib/friends";
-import { getWorkoutDay } from "@/lib/program";
+import { getWorkoutDay, getPhase } from "@/lib/program";
+
+// Parse composite day key (e.g., "p1-w1-d1" -> { phase: "1", week: "1", day: "1" })
+function parseDayKey(dayKey: string): { phase: string; week: string; day: string } | null {
+  const match = dayKey.match(/^p(\d+)-w(\d+)-d(\d+)$/);
+  if (!match) {
+    // Legacy format (just a number like "1", "2", etc.)
+    return { phase: "1", week: "1", day: dayKey };
+  }
+  return { phase: match[1], week: match[2], day: match[3] };
+}
 
 export default function HistoryPage() {
   const { data: session, status } = useSession();
@@ -108,16 +118,22 @@ export default function HistoryPage() {
       {/* Content */}
       <main className="px-4 py-6 max-w-5xl mx-auto">
         {/* Tabs */}
-        <div className="flex gap-2 mb-6 max-w-lg">
+        <div className="flex gap-2 mb-6 max-w-xl overflow-x-auto">
           <Link
             href="/dashboard"
-            className="flex-1 py-2 px-4 bg-card text-muted text-center rounded-lg font-medium hover:bg-card-hover transition-colors"
+            className="flex-1 py-2 px-4 bg-card text-muted text-center rounded-lg font-medium hover:bg-card-hover transition-colors whitespace-nowrap"
           >
             Program
           </Link>
           <Link
+            href="/feed"
+            className="flex-1 py-2 px-4 bg-card text-muted text-center rounded-lg font-medium hover:bg-card-hover transition-colors whitespace-nowrap"
+          >
+            Feed
+          </Link>
+          <Link
             href="/history"
-            className="flex-1 py-2 px-4 bg-accent text-white text-center rounded-lg font-medium"
+            className="flex-1 py-2 px-4 bg-accent text-white text-center rounded-lg font-medium whitespace-nowrap"
           >
             History
           </Link>
@@ -142,7 +158,9 @@ export default function HistoryPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {history.map((entry, index) => {
-              const workout = getWorkoutDay(entry.day);
+              const parsed = parseDayKey(entry.day);
+              const workout = parsed ? getWorkoutDay(parsed.phase, parsed.day) : null;
+              const phase = parsed ? getPhase(parsed.phase) : null;
               return (
                 <div
                   key={`${entry.day}-${entry.date}-${index}`}
@@ -151,8 +169,13 @@ export default function HistoryPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted">{formatDate(entry.date)}</p>
+                      {parsed && phase && (
+                        <p className="text-xs text-accent mt-1">
+                          {phase.name} - Week {parsed.week}
+                        </p>
+                      )}
                       <h3 className="font-semibold text-lg mt-1">
-                        {workout?.name || `Day ${entry.day}`}
+                        {workout?.name || `Day ${parsed?.day || entry.day}`}
                       </h3>
                       <p className="text-sm text-muted">
                         {workout?.focus || "Workout"}
