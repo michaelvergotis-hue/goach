@@ -12,10 +12,15 @@ async function generateIcons() {
     { name: 'apple-touch-icon.png', size: 180 },
   ];
 
+  // First, trim the whitespace from source image
+  const trimmed = await sharp(SOURCE)
+    .trim() // Remove whitespace/transparent edges
+    .toBuffer();
+
   for (const { name, size } of sizes) {
-    // Resize to fill entire icon with white background
-    await sharp(SOURCE)
-      .resize(size, size, { fit: 'cover' })
+    // Resize trimmed image to fill icon with white background
+    await sharp(trimmed)
+      .resize(size, size, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
       .flatten({ background: { r: 255, g: 255, b: 255 } }) // Flatten transparency to white
       .png()
       .toFile(path.join(PUBLIC_DIR, name));
