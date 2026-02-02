@@ -134,24 +134,60 @@ export async function getWorkoutStats(
   }
 }
 
-// Check if a specific day was completed today
-export async function getDayCompletionStatus(
+// Get workout session statuses (completed/missed)
+export async function getWorkoutSessionStatuses(
   userId: string
-): Promise<Record<string, boolean>> {
+): Promise<Record<string, { status: string; date: string }>> {
   try {
     const response = await fetch(
-      `/api/logs?userId=${encodeURIComponent(userId)}`
+      `/api/workout-status?userId=${encodeURIComponent(userId)}`
     );
     if (!response.ok) return {};
 
     const data = await response.json();
-    const today = new Date().toISOString().split("T")[0];
+    const statuses: Record<string, { status: string; date: string }> = {};
 
+    data.forEach((row: { day: string; date: string; status: string }) => {
+      statuses[row.day] = { status: row.status, date: row.date };
+    });
+
+    return statuses;
+  } catch (error) {
+    console.error("Error fetching session statuses:", error);
+    return {};
+  }
+}
+
+// Mark a workout as completed or missed
+export async function setWorkoutSessionStatus(
+  userId: string,
+  day: string,
+  status: "completed" | "missed"
+): Promise<boolean> {
+  try {
+    const response = await fetch("/api/workout-status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, day, status }),
+    });
+    return response.ok;
+  } catch (error) {
+    console.error("Error setting workout status:", error);
+    return false;
+  }
+}
+
+// Legacy function for compatibility - now uses session status
+export async function getDayCompletionStatus(
+  userId: string
+): Promise<Record<string, boolean>> {
+  try {
+    const statuses = await getWorkoutSessionStatuses(userId);
     const completed: Record<string, boolean> = {};
-    data.forEach((row: { day: string; date: string }) => {
-      if (row.date === today) {
-        completed[row.day] = true;
-      }
+
+    Object.entries(statuses).forEach(([day, { status }]) => {
+      // Only count as "done" if completed or missed
+      completed[day] = status === "completed" || status === "missed";
     });
 
     return completed;

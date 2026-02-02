@@ -10,6 +10,7 @@ import {
   WorkoutLog,
   saveWorkoutLog,
   getTodayWorkoutLog,
+  setWorkoutSessionStatus,
 } from "@/lib/storage";
 import { getFriendById } from "@/lib/friends";
 import { ExerciseCard } from "@/components/ExerciseCard";
@@ -42,6 +43,9 @@ export default function WorkoutPage() {
   const [selectedGroups, setSelectedGroups] = useState<number[]>([]);
   const [isSharing, setIsSharing] = useState(false);
   const [hasShared, setHasShared] = useState(false);
+
+  // Completion state
+  const [isMarkingComplete, setIsMarkingComplete] = useState(false);
 
   // Load workout data
   useEffect(() => {
@@ -176,6 +180,26 @@ export default function WorkoutPage() {
         ? prev.filter((id) => id !== groupId)
         : [...prev, groupId]
     );
+  };
+
+  // Mark workout as complete and navigate back
+  const handleMarkComplete = async () => {
+    if (!userId) return;
+
+    setIsMarkingComplete(true);
+
+    // Save final progress first
+    await saveProgress();
+
+    // Mark the workout session as completed
+    const success = await setWorkoutSessionStatus(userId, dayKey, "completed");
+
+    if (success) {
+      router.push("/dashboard");
+    } else {
+      setIsMarkingComplete(false);
+      // Could show an error toast here
+    }
   };
 
   // Save progress to database
@@ -320,38 +344,63 @@ export default function WorkoutPage() {
         ))}
       </main>
 
-      {/* Finish workout button */}
-      {completedCount === workout.exercises.length && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border">
-          <div className="max-w-3xl mx-auto flex gap-3">
-            {groups.length > 0 && !hasShared && (
-              <button
-                onClick={() => setShowShareModal(true)}
-                className="px-4 py-4 bg-card hover:bg-card-hover border border-border text-foreground font-semibold rounded-xl transition-colors flex items-center gap-2"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                </svg>
-                Share
-              </button>
-            )}
-            {hasShared && (
-              <div className="px-4 py-4 bg-success/20 text-success font-semibold rounded-xl flex items-center gap-2">
+      {/* Bottom action bar */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border">
+        <div className="max-w-3xl mx-auto flex gap-3">
+          {/* Share button - only when all exercises done and in a group */}
+          {completedCount === workout.exercises.length && groups.length > 0 && !hasShared && (
+            <button
+              onClick={() => setShowShareModal(true)}
+              className="px-4 py-4 bg-card hover:bg-card-hover border border-border text-foreground font-semibold rounded-xl transition-colors flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              </svg>
+              Share
+            </button>
+          )}
+          {hasShared && (
+            <div className="px-4 py-4 bg-success/20 text-success font-semibold rounded-xl flex items-center gap-2">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              Shared!
+            </div>
+          )}
+
+          {/* Mark Complete button */}
+          <button
+            onClick={handleMarkComplete}
+            disabled={isMarkingComplete}
+            className={`flex-1 font-semibold py-4 rounded-xl text-center transition-colors flex items-center justify-center gap-2 ${
+              completedCount === workout.exercises.length
+                ? "bg-success hover:bg-success/90 text-white"
+                : "bg-accent hover:bg-accent-hover text-white"
+            } disabled:opacity-50`}
+          >
+            {isMarkingComplete ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Saving...
+              </>
+            ) : completedCount === workout.exercises.length ? (
+              <>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                Shared!
-              </div>
+                Workout Complete!
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Mark Complete ({completedCount}/{workout.exercises.length})
+              </>
             )}
-            <Link
-              href="/dashboard"
-              className="flex-1 bg-success hover:bg-success/90 text-white font-semibold py-4 rounded-xl text-center transition-colors"
-            >
-              Workout Complete!
-            </Link>
-          </div>
+          </button>
         </div>
-      )}
+      </div>
 
       {/* Share Modal */}
       {showShareModal && (

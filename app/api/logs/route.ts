@@ -20,15 +20,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "userId is required" }, { status: 400 });
     }
 
-    // Get workout history for a user
+    // Get workout history for a user (only completed workouts)
     if (history) {
       const result = await sql`
-        SELECT DISTINCT day, date,
-          COUNT(DISTINCT exercise_id) as exercises_logged
-        FROM workout_logs
-        WHERE user_id = ${userId}
-        GROUP BY day, date
-        ORDER BY date DESC
+        SELECT wl.day, wl.date,
+          COUNT(DISTINCT wl.exercise_id) as exercises_logged
+        FROM workout_logs wl
+        INNER JOIN workout_session_status wss
+          ON wl.user_id = wss.user_id
+          AND wl.day = wss.day
+          AND wss.status = 'completed'
+        WHERE wl.user_id = ${userId}
+        GROUP BY wl.day, wl.date
+        ORDER BY wl.date DESC
         LIMIT 50
       `;
       return NextResponse.json(result);

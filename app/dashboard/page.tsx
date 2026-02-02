@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import {
-  getDayCompletionStatus,
+  getWorkoutSessionStatuses,
+  setWorkoutSessionStatus,
   getWorkoutHistory,
   HistoryEntry,
 } from "@/lib/storage";
@@ -55,7 +56,7 @@ export default function DashboardPage() {
 
   const [selectedPhase, setSelectedPhase] = useState("1");
   const [selectedWeek, setSelectedWeek] = useState(1);
-  const [completionStatus, setCompletionStatus] = useState<Record<string, boolean>>({});
+  const [sessionStatuses, setSessionStatuses] = useState<Record<string, { status: string; date: string }>>({});
   const [showProgramSelector, setShowProgramSelector] = useState(false);
 
   const [groups, setGroups] = useState<Group[]>([]);
@@ -94,11 +95,11 @@ export default function DashboardPage() {
     setFriend(friendData);
 
     async function loadData() {
-      const [completionData, historyData] = await Promise.all([
-        getDayCompletionStatus(userId!),
+      const [statusData, historyData] = await Promise.all([
+        getWorkoutSessionStatuses(userId!),
         getWorkoutHistory(userId!),
       ]);
-      setCompletionStatus(completionData);
+      setSessionStatuses(statusData);
       setHistory(historyData);
 
       try {
@@ -178,12 +179,34 @@ export default function DashboardPage() {
     signOut({ callbackUrl: "/" });
   };
 
-  const isDayComplete = (day: string) => {
+  const getDayStatus = (day: string): "completed" | "missed" | null => {
     const key = `p${selectedPhase}-w${selectedWeek}-d${day}`;
-    return completionStatus[key] === true;
+    return sessionStatuses[key]?.status as "completed" | "missed" | null || null;
   };
 
-  const completedDaysInWeek = workouts.filter(w => isDayComplete(w.day)).length;
+  const isDayDone = (day: string) => {
+    const status = getDayStatus(day);
+    return status === "completed" || status === "missed";
+  };
+
+  const handleMarkMissed = async (day: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!friend) return;
+
+    const key = `p${selectedPhase}-w${selectedWeek}-d${day}`;
+    const success = await setWorkoutSessionStatus(friend.id, key, "missed");
+    if (success) {
+      setSessionStatuses(prev => ({
+        ...prev,
+        [key]: { status: "missed", date: new Date().toISOString().split("T")[0] }
+      }));
+    }
+  };
+
+  const completedDaysInWeek = workouts.filter(w => getDayStatus(w.day) === "completed").length;
+  const missedDaysInWeek = workouts.filter(w => getDayStatus(w.day) === "missed").length;
+  const doneDaysInWeek = completedDaysInWeek + missedDaysInWeek;
 
   const totalWeeks = phases.reduce((acc, p) => acc + p.phase.weeks, 0);
   const currentWeekNumber = phases
@@ -332,9 +355,9 @@ export default function DashboardPage() {
 
       {/* Content Area */}
       <main className="flex-1 flex flex-col px-5 py-6 max-w-6xl mx-auto w-full">
-        <div className="lg:grid lg:grid-cols-12 lg:gap-6 flex-1">
+        <div className={`flex-1 ${activeTab === "program" ? "lg:grid lg:grid-cols-12 lg:gap-6" : ""}`}>
           {/* Main Content */}
-          <div className="lg:col-span-8 flex flex-col min-h-0">
+          <div className={`flex flex-col min-h-0 ${activeTab === "program" ? "lg:col-span-8" : ""}`}
             {/* PROGRAM TAB */}
             {activeTab === "program" && (
               <div className="flex flex-col">
@@ -405,49 +428,114 @@ export default function DashboardPage() {
                 <div className="flex items-end justify-between mb-4">
                   <div>
                     <h3 className="text-xl font-bold text-foreground">This Week</h3>
-                    <p className="text-sm text-muted">{completedDaysInWeek} of {workouts.length} workouts complete</p>
+                    <p className="text-sm text-muted">
+                      {completedDaysInWeek} completed{missedDaysInWeek > 0 && `, ${missedDaysInWeek} skipped`}
+                    </p>
                   </div>
                   <div className="flex items-center gap-1">
-                    {workouts.map((_, i) => (
-                      <div key={i} className={`w-2 h-2 rounded-full transition-colors ${i < completedDaysInWeek ? 'bg-accent' : 'bg-border'}`} />
-                    ))}
+                    {workouts.map(({ day }) => {
+                      const status = getDayStatus(day);
+                      return (
+                        <div
+                          key={day}
+                          className={`w-2 h-2 rounded-full transition-colors ${
+                            status === "completed" ? 'bg-success' :
+                            status === "missed" ? 'bg-muted' :
+                            'bg-border'
+                          }`}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
+
+                {/* Week Complete Banner */}
+                {doneDaysInWeek === workouts.length && (
+                  <div className="mb-4 p-4 bg-success/10 border border-success/30 rounded-2xl text-center">
+                    <p className="text-success font-semibold">Week Complete!</p>
+                    <p className="text-sm text-muted mt-1">{completedDaysInWeek} workouts completed</p>
+                  </div>
+                )}
 
                 {/* Workout Cards */}
                 <div className="space-y-3">
                   {workouts.map(({ day, workout }) => {
-                    const isComplete = isDayComplete(day);
+                    const status = getDayStatus(day);
+                    const isCompleted = status === "completed";
+                    const isMissed = status === "missed";
+                    const isDone = isCompleted || isMissed;
+
                     return (
-                      <Link
+                      <div
                         key={day}
-                        href={`/workout/${selectedPhase}/${selectedWeek}/${day}`}
-                        className={`group block rounded-2xl transition-all duration-200 ${isComplete ? "bg-success/5 hover:bg-success/10" : "bg-card hover:bg-card-hover"}`}
+                        className={`rounded-2xl transition-all duration-200 ${
+                          isCompleted ? "bg-success/5" :
+                          isMissed ? "bg-card/50 opacity-60" :
+                          "bg-card hover:bg-card-hover"
+                        }`}
                       >
                         <div className="p-4 flex items-center gap-4">
-                          <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${isComplete ? 'bg-success/20' : 'bg-background group-hover:bg-accent/10'}`}>
-                            {isComplete ? (
-                              <svg className="w-7 h-7 text-success" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          <Link
+                            href={`/workout/${selectedPhase}/${selectedWeek}/${day}`}
+                            className="flex items-center gap-4 flex-1 min-w-0"
+                          >
+                            <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${
+                              isCompleted ? 'bg-success/20' :
+                              isMissed ? 'bg-muted/20' :
+                              'bg-background hover:bg-accent/10'
+                            }`}>
+                              {isCompleted ? (
+                                <svg className="w-7 h-7 text-success" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              ) : isMissed ? (
+                                <svg className="w-7 h-7 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              ) : (
+                                <span className="text-2xl font-bold text-muted hover:text-accent transition-colors">{day}</span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className={`font-semibold text-base ${
+                                isCompleted ? 'text-success' :
+                                isMissed ? 'text-muted line-through' :
+                                'text-foreground'
+                              }`}>
+                                {workout.focus.split('(')[0].trim()}
+                              </h4>
+                              <p className="text-sm text-muted truncate">
+                                {workout.focus.includes('(') ? workout.focus.match(/\((.*?)\)/)?.[1] : workout.focus}
+                              </p>
+                              <p className="text-xs text-muted mt-1">
+                                {isMissed ? "Skipped" : `${workout.exercises.length} exercises`}
+                              </p>
+                            </div>
+                          </Link>
+
+                          {/* Skip button - only show if not done */}
+                          {!isDone && (
+                            <button
+                              onClick={(e) => handleMarkMissed(day, e)}
+                              className="p-2 text-muted hover:text-foreground hover:bg-background rounded-lg transition-colors"
+                              title="Skip this workout"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
                               </svg>
-                            ) : (
-                              <span className="text-2xl font-bold text-muted group-hover:text-accent transition-colors">{day}</span>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className={`font-semibold text-base ${isComplete ? 'text-success' : 'text-foreground'}`}>
-                              {workout.focus.split('(')[0].trim()}
-                            </h4>
-                            <p className="text-sm text-muted truncate">
-                              {workout.focus.includes('(') ? workout.focus.match(/\((.*?)\)/)?.[1] : workout.focus}
-                            </p>
-                            <p className="text-xs text-muted mt-1">{workout.exercises.length} exercises</p>
-                          </div>
-                          <svg className={`w-5 h-5 flex-shrink-0 transition-all ${isComplete ? 'text-success' : 'text-muted group-hover:text-accent group-hover:translate-x-1'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
+                            </button>
+                          )}
+
+                          {/* Arrow for navigation */}
+                          {!isDone && (
+                            <Link href={`/workout/${selectedPhase}/${selectedWeek}/${day}`}>
+                              <svg className="w-5 h-5 text-muted hover:text-accent transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </Link>
+                          )}
                         </div>
-                      </Link>
+                      </div>
                     );
                   })}
                 </div>
@@ -561,16 +649,18 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Sidebar - Desktop only */}
-          <div className="lg:col-span-4 hidden lg:block">
-            <div className="sticky top-6 space-y-4">
-              <SupplementCard userId={friend.id} />
-              <div className="p-4 bg-card rounded-2xl border border-border">
-                <h3 className="font-semibold mb-3 text-foreground">Notifications</h3>
-                <NotificationToggle userId={friend.id} />
+          {/* Sidebar - Desktop only, Program tab only */}
+          {activeTab === "program" && (
+            <div className="lg:col-span-4 hidden lg:block">
+              <div className="sticky top-6 space-y-4">
+                <SupplementCard userId={friend.id} />
+                <div className="p-4 bg-card rounded-2xl border border-border">
+                  <h3 className="font-semibold mb-3 text-foreground">Notifications</h3>
+                  <NotificationToggle userId={friend.id} />
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Mobile Sidebar - Only on Program tab */}

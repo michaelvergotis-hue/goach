@@ -142,6 +142,24 @@ export async function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_feed_posts_group
     ON feed_posts(group_id, created_at DESC)
   `;
+
+  // Workout session status - tracks completed/missed workouts
+  await sql`
+    CREATE TABLE IF NOT EXISTS workout_session_status (
+      id SERIAL PRIMARY KEY,
+      user_id VARCHAR(50) NOT NULL,
+      day VARCHAR(20) NOT NULL,
+      date DATE NOT NULL,
+      status VARCHAR(20) NOT NULL CHECK (status IN ('completed', 'missed')),
+      created_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(user_id, day)
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_workout_session_status_user
+    ON workout_session_status(user_id)
+  `;
 }
 
 // Migration: Add user_id column if it doesn't exist
