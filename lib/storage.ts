@@ -25,7 +25,6 @@ export interface HistoryEntry {
   exercises_logged: number;
 }
 
-const AUTH_KEY = "goach_authenticated";
 const USER_KEY = "goach_selected_user";
 
 // Save workout log to database
@@ -183,20 +182,6 @@ export async function getWorkoutHistory(
   } catch (error) {
     console.error("Error fetching workout history:", error);
     return [];
-  }
-}
-
-// Authentication helpers
-export function isAuthenticated(): boolean {
-  if (typeof window === "undefined") return false;
-  return localStorage.getItem(AUTH_KEY) === "true";
-}
-
-export function setAuthenticated(value: boolean): void {
-  if (value) {
-    localStorage.setItem(AUTH_KEY, "true");
-  } else {
-    localStorage.removeItem(AUTH_KEY);
   }
 }
 

@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import {
-  isAuthenticated,
-  setAuthenticated,
   getSelectedUser,
   clearSelectedUser,
   getWorkoutHistory,
@@ -15,13 +14,16 @@ import { getFriendById, Friend } from "@/lib/friends";
 import { getWorkoutDay } from "@/lib/program";
 
 export default function HistoryPage() {
+  const { status } = useSession();
   const [isLoading, setIsLoading] = useState(true);
   const [friend, setFriend] = useState<Friend | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const router = useRouter();
 
   useEffect(() => {
-    if (!isAuthenticated()) {
+    if (status === "loading") return;
+
+    if (status === "unauthenticated") {
       router.replace("/");
       return;
     }
@@ -47,12 +49,11 @@ export default function HistoryPage() {
     }
 
     loadData();
-  }, [router]);
+  }, [status, router]);
 
   const handleLogout = () => {
-    setAuthenticated(false);
     clearSelectedUser();
-    router.replace("/");
+    signOut({ callbackUrl: "/" });
   };
 
   const handleSwitchUser = () => {

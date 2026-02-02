@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { isAuthenticated, setSelectedUser } from "@/lib/storage";
+import { useSession, signOut } from "next-auth/react";
+import { setSelectedUser } from "@/lib/storage";
 import { friends, Friend } from "@/lib/friends";
 
 export default function SelectFriendPage() {
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: session, status } = useSession();
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const [password, setPassword] = useState("");
@@ -14,22 +15,18 @@ export default function SelectFriendPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isAuthenticated()) {
+    if (status === "unauthenticated") {
       router.replace("/");
-      return;
     }
-    setIsLoading(false);
-  }, [router]);
+  }, [status, router]);
 
   const handleSelectFriend = (friend: Friend) => {
     if (friend.password) {
-      // This profile requires a password
       setSelectedFriend(friend);
       setShowPasswordModal(true);
       setPassword("");
       setError("");
     } else {
-      // No password required
       setSelectedUser(friend.id);
       router.push("/dashboard");
     }
@@ -46,12 +43,20 @@ export default function SelectFriendPage() {
     }
   };
 
-  if (isLoading) {
+  const handleSignOut = () => {
+    signOut({ callbackUrl: "/" });
+  };
+
+  if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
       </div>
     );
+  }
+
+  if (!session) {
+    return null;
   }
 
   return (
@@ -60,6 +65,11 @@ export default function SelectFriendPage() {
         <div className="text-center mb-8">
           <h1 className="text-2xl font-bold">Who&apos;s Training?</h1>
           <p className="text-muted mt-2">Select your profile</p>
+          {session.user?.email && (
+            <p className="text-muted text-sm mt-1">
+              Signed in as {session.user.email}
+            </p>
+          )}
         </div>
 
         {/* Friends grid - responsive */}
@@ -105,6 +115,16 @@ export default function SelectFriendPage() {
               )}
             </button>
           ))}
+        </div>
+
+        {/* Sign out link */}
+        <div className="text-center mt-6">
+          <button
+            onClick={handleSignOut}
+            className="text-muted hover:text-foreground text-sm transition-colors"
+          >
+            Sign out
+          </button>
         </div>
       </div>
 

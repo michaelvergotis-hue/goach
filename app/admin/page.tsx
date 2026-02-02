@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { isAuthenticated } from "@/lib/storage";
 import { friends } from "@/lib/friends";
 
 export default function AdminPage() {
+  const { status } = useSession();
   const [isLoading, setIsLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<string>("all");
   const [title, setTitle] = useState("G.O.A.C.H");
@@ -16,12 +17,14 @@ export default function AdminPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isAuthenticated()) {
+    if (status === "loading") return;
+
+    if (status === "unauthenticated") {
       router.replace("/");
       return;
     }
     setIsLoading(false);
-  }, [router]);
+  }, [status, router]);
 
   const handleSend = async () => {
     if (!message.trim()) {

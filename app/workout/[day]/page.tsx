@@ -2,10 +2,10 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { getWorkoutDay, WorkoutDay } from "@/lib/program";
 import {
-  isAuthenticated,
   ExerciseLog,
   WorkoutLog,
   saveWorkoutLog,
@@ -19,6 +19,7 @@ export default function WorkoutPage() {
   const params = useParams();
   const day = params.day as string;
   const router = useRouter();
+  const { status } = useSession();
 
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
@@ -32,7 +33,9 @@ export default function WorkoutPage() {
 
   // Load workout data
   useEffect(() => {
-    if (!isAuthenticated()) {
+    if (status === "loading") return;
+
+    if (status === "unauthenticated") {
       router.replace("/");
       return;
     }
@@ -101,7 +104,7 @@ export default function WorkoutPage() {
     }
 
     loadExistingLogs(workoutData);
-  }, [day, router]);
+  }, [day, status, router]);
 
   // Save progress to database
   const saveProgress = useCallback(async () => {

@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import {
-  isAuthenticated,
-  setAuthenticated,
   getWorkoutStats,
   getDayCompletionStatus,
   getSelectedUser,
@@ -16,6 +15,7 @@ import { getFriendById, Friend } from "@/lib/friends";
 import { NotificationToggle } from "@/components/NotificationToggle";
 
 export default function DashboardPage() {
+  const { status } = useSession();
   const [isLoading, setIsLoading] = useState(true);
   const [friend, setFriend] = useState<Friend | null>(null);
   const [workoutDays, setWorkoutDays] = useState<ReturnType<typeof getAllDays>>(
@@ -26,7 +26,9 @@ export default function DashboardPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isAuthenticated()) {
+    if (status === "loading") return;
+
+    if (status === "unauthenticated") {
       router.replace("/");
       return;
     }
@@ -60,12 +62,11 @@ export default function DashboardPage() {
     }
 
     loadData();
-  }, [router]);
+  }, [status, router]);
 
   const handleLogout = () => {
-    setAuthenticated(false);
     clearSelectedUser();
-    router.replace("/");
+    signOut({ callbackUrl: "/" });
   };
 
   const handleSwitchUser = () => {

@@ -4,6 +4,7 @@ export interface Friend {
   initials: string;
   isAdmin?: boolean;
   password?: string; // If set, requires password to access profile
+  email?: string; // Google account email for automatic profile linking
 }
 
 // Add or remove friends here
