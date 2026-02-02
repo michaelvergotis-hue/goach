@@ -106,23 +106,29 @@ export default function DashboardPage() {
       {/* Content */}
       <main className="px-4 py-6 max-w-5xl mx-auto">
         {/* Tabs */}
-        <div className="flex gap-2 mb-6 max-w-lg">
+        <div className="flex gap-2 mb-6 max-w-xl overflow-x-auto">
           <Link
             href="/dashboard"
-            className="flex-1 py-2 px-4 bg-accent text-white text-center rounded-lg font-medium"
+            className="flex-1 py-2 px-4 bg-accent text-white text-center rounded-lg font-medium whitespace-nowrap"
           >
             Program
           </Link>
           <Link
+            href="/feed"
+            className="flex-1 py-2 px-4 bg-card text-muted text-center rounded-lg font-medium hover:bg-card-hover transition-colors whitespace-nowrap"
+          >
+            Feed
+          </Link>
+          <Link
             href="/history"
-            className="flex-1 py-2 px-4 bg-card text-muted text-center rounded-lg font-medium hover:bg-card-hover transition-colors"
+            className="flex-1 py-2 px-4 bg-card text-muted text-center rounded-lg font-medium hover:bg-card-hover transition-colors whitespace-nowrap"
           >
             History
           </Link>
           {friend.isAdmin && (
             <Link
               href="/admin"
-              className="flex-1 py-2 px-4 bg-card text-muted text-center rounded-lg font-medium hover:bg-card-hover transition-colors"
+              className="flex-1 py-2 px-4 bg-card text-muted text-center rounded-lg font-medium hover:bg-card-hover transition-colors whitespace-nowrap"
             >
               Admin
             </Link>

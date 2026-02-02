@@ -94,6 +94,54 @@ export async function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_supplement_logs_user_date
     ON supplement_logs(user_id, date)
   `;
+
+  // Groups table
+  await sql`
+    CREATE TABLE IF NOT EXISTS groups (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      created_by VARCHAR(50) NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+
+  // Group members - links users to groups
+  await sql`
+    CREATE TABLE IF NOT EXISTS group_members (
+      id SERIAL PRIMARY KEY,
+      group_id INT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+      user_id VARCHAR(50) NOT NULL,
+      joined_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(group_id, user_id)
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_group_members_user
+    ON group_members(user_id)
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_group_members_group
+    ON group_members(group_id)
+  `;
+
+  // Feed posts - workout shares, PRs, chat messages
+  await sql`
+    CREATE TABLE IF NOT EXISTS feed_posts (
+      id SERIAL PRIMARY KEY,
+      group_id INT NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+      user_id VARCHAR(50) NOT NULL,
+      post_type VARCHAR(20) NOT NULL,
+      content JSONB NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_feed_posts_group
+    ON feed_posts(group_id, created_at DESC)
+  `;
 }
 
 // Migration: Add user_id column if it doesn't exist
