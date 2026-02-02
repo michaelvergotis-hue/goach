@@ -63,6 +63,12 @@ export default function DashboardPage() {
   const [sessionStatuses, setSessionStatuses] = useState<Record<string, { status: string; date: string }>>({});
   const [showProgramSelector, setShowProgramSelector] = useState(false);
 
+  // Share workout state
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [sharingWorkout, setSharingWorkout] = useState<{ day: string; workout: { name: string; focus: string; exercises: { id: string }[] } } | null>(null);
+  const [shareSelectedGroups, setShareSelectedGroups] = useState<number[]>([]);
+  const [isShareSending, setIsShareSending] = useState(false);
+
   const [groups, setGroups] = useState<Group[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<number | null>(null);
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -316,6 +322,57 @@ export default function DashboardPage() {
         return newStatuses;
       });
     }
+  };
+
+  const handleOpenShareModal = (day: string, workout: { name: string; focus: string; exercises: { id: string }[] }, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSharingWorkout({ day, workout });
+    setShareSelectedGroups([]);
+    setShowShareModal(true);
+  };
+
+  const handleShareWorkout = async () => {
+    if (!sharingWorkout || !friend || shareSelectedGroups.length === 0) return;
+
+    setIsShareSending(true);
+    const dayKey = `p${selectedPhase}-w${selectedWeek}-d${sharingWorkout.day}`;
+    const phaseInfo = getPhase(selectedPhase);
+
+    try {
+      for (const groupId of shareSelectedGroups) {
+        await fetch("/api/feed", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            groupId,
+            userId: friend.id,
+            postType: "workout",
+            content: {
+              workoutName: sharingWorkout.workout.name,
+              exerciseCount: sharingWorkout.workout.exercises.length,
+              phase: phaseInfo?.name || `Phase ${selectedPhase}`,
+              week: `Week ${selectedWeek}`,
+              day: dayKey,
+            },
+          }),
+        });
+      }
+      setShowShareModal(false);
+      setSharingWorkout(null);
+    } catch (error) {
+      console.error("Error sharing workout:", error);
+    } finally {
+      setIsShareSending(false);
+    }
+  };
+
+  const toggleShareGroup = (groupId: number) => {
+    setShareSelectedGroups(prev =>
+      prev.includes(groupId)
+        ? prev.filter(id => id !== groupId)
+        : [...prev, groupId]
+    );
   };
 
   const completedDaysInWeek = workouts.filter(w => getDayStatus(w.day) === "completed").length;
@@ -672,40 +729,47 @@ export default function DashboardPage() {
                             </div>
                           </Link>
 
-                          {/* Skip button - only show if not done */}
-                          {!isDone && (
-                            <button
-                              onClick={(e) => handleMarkMissed(day, e)}
-                              className="p-2 text-muted hover:text-foreground hover:bg-background rounded-lg transition-colors"
-                              title="Skip this workout"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                              </svg>
-                            </button>
-                          )}
+                          {/* Action buttons */}
+                          <div className="flex items-center gap-2">
+                            {/* Skip button - only show if not done */}
+                            {!isDone && (
+                              <button
+                                onClick={(e) => handleMarkMissed(day, e)}
+                                className="px-3 py-1.5 text-xs font-medium text-muted bg-background border border-border rounded-lg hover:text-foreground hover:border-foreground/30 transition-colors"
+                              >
+                                Skip
+                              </button>
+                            )}
 
-                          {/* Revert button - show for completed/missed workouts */}
-                          {isDone && (
-                            <button
-                              onClick={(e) => handleRevertWorkout(day, e)}
-                              className="p-2 text-muted hover:text-accent hover:bg-background rounded-lg transition-colors"
-                              title="Revert this workout"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                              </svg>
-                            </button>
-                          )}
+                            {/* Share button - only for completed workouts */}
+                            {isCompleted && groups.length > 0 && (
+                              <button
+                                onClick={(e) => handleOpenShareModal(day, workout, e)}
+                                className="px-3 py-1.5 text-xs font-medium text-accent bg-accent/10 border border-accent/30 rounded-lg hover:bg-accent/20 transition-colors"
+                              >
+                                Share
+                              </button>
+                            )}
 
-                          {/* Arrow for navigation */}
-                          {!isDone && (
-                            <Link href={`/workout/${selectedPhase}/${selectedWeek}/${day}`}>
-                              <svg className="w-5 h-5 text-muted hover:text-accent transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                              </svg>
-                            </Link>
-                          )}
+                            {/* Undo button - show for completed/missed workouts */}
+                            {isDone && (
+                              <button
+                                onClick={(e) => handleRevertWorkout(day, e)}
+                                className="px-3 py-1.5 text-xs font-medium text-muted bg-background border border-border rounded-lg hover:text-foreground hover:border-foreground/30 transition-colors"
+                              >
+                                Undo
+                              </button>
+                            )}
+
+                            {/* Arrow for navigation - only if not done */}
+                            {!isDone && (
+                              <Link href={`/workout/${selectedPhase}/${selectedWeek}/${day}`} className="p-2">
+                                <svg className="w-5 h-5 text-muted hover:text-accent transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                              </Link>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -985,6 +1049,63 @@ export default function DashboardPage() {
           </div>
         )}
       </main>
+
+      {/* Share Workout Modal */}
+      {showShareModal && sharingWorkout && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setShowShareModal(false)}>
+          <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-bold mb-2">Share Workout</h2>
+            <p className="text-muted text-sm mb-4">
+              Share your <span className="font-semibold text-foreground">{sharingWorkout.workout.name}</span> completion
+            </p>
+
+            <p className="text-sm text-muted mb-2">Share to:</p>
+            <div className="space-y-2 mb-4">
+              {groups.map((group) => (
+                <button
+                  key={group.id}
+                  onClick={() => toggleShareGroup(group.id)}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-colors ${
+                    shareSelectedGroups.includes(group.id)
+                      ? "bg-accent/10 border-accent"
+                      : "bg-background border-border hover:bg-card-hover"
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                    shareSelectedGroups.includes(group.id)
+                      ? "bg-accent text-white"
+                      : "bg-accent/20 text-accent"
+                  }`}>
+                    {group.name.charAt(0)}
+                  </div>
+                  <span className="flex-1 text-left">{group.name}</span>
+                  {shareSelectedGroups.includes(group.id) && (
+                    <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="flex-1 py-3 bg-background border border-border rounded-xl font-medium hover:bg-card-hover transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleShareWorkout}
+                disabled={isShareSending || shareSelectedGroups.length === 0}
+                className="flex-1 py-3 bg-accent text-white rounded-xl font-medium hover:bg-accent-hover transition-colors disabled:opacity-50"
+              >
+                {isShareSending ? "Sharing..." : "Share"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
