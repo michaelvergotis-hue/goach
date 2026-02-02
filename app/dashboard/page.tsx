@@ -127,6 +127,14 @@ export default function DashboardPage() {
           >
             History
           </Link>
+          {friend.isAdmin && (
+            <Link
+              href="/admin"
+              className="flex-1 py-2 px-4 bg-card text-muted text-center rounded-lg font-medium hover:bg-card-hover transition-colors"
+            >
+              Admin
+            </Link>
+          )}
         </div>
 
         {/* Desktop: Two column layout */}

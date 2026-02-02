@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { isAuthenticated, setSelectedUser } from "@/lib/storage";
-import { friends } from "@/lib/friends";
+import { friends, Friend } from "@/lib/friends";
 
 export default function SelectFriendPage() {
   const [isLoading, setIsLoading] = useState(true);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -18,9 +21,29 @@ export default function SelectFriendPage() {
     setIsLoading(false);
   }, [router]);
 
-  const handleSelectFriend = (friendId: string) => {
-    setSelectedUser(friendId);
-    router.push("/dashboard");
+  const handleSelectFriend = (friend: Friend) => {
+    if (friend.password) {
+      // This profile requires a password
+      setSelectedFriend(friend);
+      setShowPasswordModal(true);
+      setPassword("");
+      setError("");
+    } else {
+      // No password required
+      setSelectedUser(friend.id);
+      router.push("/dashboard");
+    }
+  };
+
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedFriend && password === selectedFriend.password) {
+      setSelectedUser(selectedFriend.id);
+      router.push("/dashboard");
+    } else {
+      setError("Wrong password");
+      setPassword("");
+    }
   };
 
   if (isLoading) {
@@ -39,61 +62,97 @@ export default function SelectFriendPage() {
           <p className="text-muted mt-2">Select your profile</p>
         </div>
 
-        {/* Admin link for coach */}
-        <Link
-          href="/admin"
-          className="w-full flex items-center gap-4 bg-accent/10 hover:bg-accent/20 border border-accent/30 rounded-xl p-4 transition-colors mb-4"
-        >
-          <div className="w-12 h-12 bg-accent/20 rounded-full flex items-center justify-center text-accent">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-          </div>
-          <span className="text-lg font-semibold text-accent">Send Reminder</span>
-          <svg
-            className="w-5 h-5 text-accent ml-auto"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5l7 7-7 7"
-            />
-          </svg>
-        </Link>
-
         {/* Friends grid - responsive */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {friends.map((friend) => (
             <button
               key={friend.id}
-              onClick={() => handleSelectFriend(friend.id)}
+              onClick={() => handleSelectFriend(friend)}
               className="w-full flex items-center gap-4 bg-card hover:bg-card-hover border border-border rounded-xl p-4 transition-colors"
             >
-              <div className="w-12 h-12 bg-accent/20 rounded-full flex items-center justify-center text-accent font-bold text-lg">
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${
+                friend.isAdmin
+                  ? "bg-accent/30 text-accent"
+                  : "bg-accent/20 text-accent"
+              }`}>
                 {friend.initials}
               </div>
               <span className="text-lg font-semibold">{friend.name}</span>
-              <svg
-                className="w-5 h-5 text-muted ml-auto"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
+              {friend.isAdmin && (
+                <span className="ml-auto px-2 py-0.5 bg-accent/20 text-accent text-xs font-medium rounded-full">
+                  Admin
+                </span>
+              )}
+              {friend.password && !friend.isAdmin && (
+                <svg className="w-4 h-4 text-muted ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              )}
+              {!friend.password && !friend.isAdmin && (
+                <svg
+                  className="w-5 h-5 text-muted ml-auto"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              )}
             </button>
           ))}
         </div>
       </div>
+
+      {/* Password Modal */}
+      {showPasswordModal && selectedFriend && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-6 z-50">
+          <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-accent/20 rounded-full flex items-center justify-center text-accent font-bold text-xl mx-auto mb-3">
+                {selectedFriend.initials}
+              </div>
+              <h2 className="text-xl font-bold">{selectedFriend.name}</h2>
+              <p className="text-muted text-sm mt-1">Enter password to continue</p>
+            </div>
+
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                autoFocus
+                className="w-full bg-background border border-border rounded-xl px-4 py-3 text-center focus:outline-none focus:border-accent"
+              />
+
+              {error && (
+                <p className="text-red-400 text-sm text-center">{error}</p>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                  className="flex-1 py-3 bg-background border border-border rounded-xl font-medium hover:bg-card-hover transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 bg-accent text-white rounded-xl font-medium hover:bg-accent-hover transition-colors"
+                >
+                  Unlock
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
