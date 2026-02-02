@@ -73,6 +73,8 @@ export default function DashboardPage() {
   const [expandedHistoryKey, setExpandedHistoryKey] = useState<string | null>(null);
   const [historyDetails, setHistoryDetails] = useState<ExerciseLog[] | null>(null);
   const [loadingHistoryDetails, setLoadingHistoryDetails] = useState(false);
+  const [historyPhase, setHistoryPhase] = useState<string | "all">("all");
+  const [historyWeek, setHistoryWeek] = useState<number | "all">("all");
 
   const phases = getAllPhases();
   const currentPhase = phases.find(p => p.id === selectedPhase);
@@ -660,6 +662,65 @@ export default function DashboardPage() {
                   <p className="text-muted mt-1">Your past sessions</p>
                 </div>
 
+                {/* Phase/Week Filter */}
+                <div className="mb-6 flex flex-wrap gap-3">
+                  {/* Phase filter */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted">Phase:</span>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => { setHistoryPhase("all"); setHistoryWeek("all"); }}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                          historyPhase === "all" ? "bg-accent text-white" : "bg-card text-muted hover:bg-card-hover"
+                        }`}
+                      >
+                        All
+                      </button>
+                      {phases.map(({ id, phase }) => (
+                        <button
+                          key={id}
+                          onClick={() => { setHistoryPhase(id); setHistoryWeek("all"); }}
+                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                            historyPhase === id ? "bg-accent text-white" : "bg-card text-muted hover:bg-card-hover"
+                          }`}
+                        >
+                          {id}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Week filter - only show when phase is selected */}
+                  {historyPhase !== "all" && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted">Week:</span>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => setHistoryWeek("all")}
+                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                            historyWeek === "all" ? "bg-accent text-white" : "bg-card text-muted hover:bg-card-hover"
+                          }`}
+                        >
+                          All
+                        </button>
+                        {phases.find(p => p.id === historyPhase) &&
+                          Array.from({ length: phases.find(p => p.id === historyPhase)!.phase.weeks }, (_, i) => i + 1).map((week) => (
+                            <button
+                              key={week}
+                              onClick={() => setHistoryWeek(week)}
+                              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                                historyWeek === week ? "bg-accent text-white" : "bg-card text-muted hover:bg-card-hover"
+                              }`}
+                            >
+                              {week}
+                            </button>
+                          ))
+                        }
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {history.length === 0 ? (
                   <div className="text-center py-12">
                     <p className="text-muted">No workouts logged yet</p>
@@ -667,9 +728,32 @@ export default function DashboardPage() {
                       Start your first workout
                     </button>
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    {history.map((entry, index) => {
+                ) : (() => {
+                  const filteredHistory = history.filter((entry) => {
+                    const parsed = parseDayKey(entry.day);
+                    if (!parsed) return historyPhase === "all";
+                    if (historyPhase !== "all" && parsed.phase !== historyPhase) return false;
+                    if (historyWeek !== "all" && parseInt(parsed.week) !== historyWeek) return false;
+                    return true;
+                  });
+
+                  if (filteredHistory.length === 0) {
+                    return (
+                      <div className="text-center py-12">
+                        <p className="text-muted">No workouts found for this phase/week</p>
+                        <button
+                          onClick={() => { setHistoryPhase("all"); setHistoryWeek("all"); }}
+                          className="inline-block mt-4 text-accent hover:underline"
+                        >
+                          View all history
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-4">
+                      {filteredHistory.map((entry, index) => {
                       const parsed = parseDayKey(entry.day);
                       const workout = parsed ? getWorkoutDay(parsed.phase, parsed.day) : null;
                       const phase = parsed ? getPhase(parsed.phase) : null;
@@ -742,8 +826,9 @@ export default function DashboardPage() {
                         </div>
                       );
                     })}
-                  </div>
-                )}
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>
