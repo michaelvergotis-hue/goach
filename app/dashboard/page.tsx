@@ -13,6 +13,7 @@ import {
 } from "@/lib/storage";
 import { getAllDays } from "@/lib/program";
 import { getFriendById, Friend } from "@/lib/friends";
+import { NotificationToggle } from "@/components/NotificationToggle";
 
 export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -187,6 +188,11 @@ export default function DashboardPage() {
               <p className="text-sm text-muted">Total sessions</p>
             </div>
           </div>
+        </div>
+
+        {/* Notifications */}
+        <div className="mt-4">
+          <NotificationToggle userId={friend.id} />
         </div>
       </main>
     </div>

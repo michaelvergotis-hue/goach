@@ -40,6 +40,22 @@ export async function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_workout_logs_user_day_date
     ON workout_logs(user_id, day, date)
   `;
+
+  // Push notification subscriptions table
+  await sql`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id SERIAL PRIMARY KEY,
+      user_id VARCHAR(50) NOT NULL,
+      endpoint TEXT NOT NULL UNIQUE,
+      keys JSONB NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user
+    ON push_subscriptions(user_id)
+  `;
 }
 
 // Migration: Add user_id column if it doesn't exist
