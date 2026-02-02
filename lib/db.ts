@@ -56,6 +56,44 @@ export async function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user
     ON push_subscriptions(user_id)
   `;
+
+  // Supplement schedules - weekly recurring schedule per user
+  // day_of_week: 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  await sql`
+    CREATE TABLE IF NOT EXISTS supplement_schedules (
+      id SERIAL PRIMARY KEY,
+      user_id VARCHAR(50) NOT NULL,
+      day_of_week INT NOT NULL CHECK (day_of_week >= 0 AND day_of_week <= 6),
+      reminder_time TIME NOT NULL,
+      supplements JSONB NOT NULL,
+      enabled BOOLEAN DEFAULT true,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(user_id, day_of_week)
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_supplement_schedules_user
+    ON supplement_schedules(user_id)
+  `;
+
+  // Supplement logs - tracks daily "taken" status
+  await sql`
+    CREATE TABLE IF NOT EXISTS supplement_logs (
+      id SERIAL PRIMARY KEY,
+      user_id VARCHAR(50) NOT NULL,
+      date DATE NOT NULL,
+      taken_at TIMESTAMP,
+      skipped BOOLEAN DEFAULT false,
+      UNIQUE(user_id, date)
+    )
+  `;
+
+  await sql`
+    CREATE INDEX IF NOT EXISTS idx_supplement_logs_user_date
+    ON supplement_logs(user_id, date)
+  `;
 }
 
 // Migration: Add user_id column if it doesn't exist

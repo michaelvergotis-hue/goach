@@ -11,6 +11,7 @@ import {
 import { getAllDays } from "@/lib/program";
 import { getFriendById, Friend } from "@/lib/friends";
 import { NotificationToggle } from "@/components/NotificationToggle";
+import { SupplementCard } from "@/components/SupplementCard";
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -195,6 +196,9 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
+
+            {/* Supplements */}
+            <SupplementCard userId={friend.id} />
 
             {/* Notifications */}
             <div className="p-4 bg-card rounded-xl border border-border">
