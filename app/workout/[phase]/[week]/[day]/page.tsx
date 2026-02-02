@@ -309,7 +309,7 @@ export default function WorkoutPage() {
           <button
             onClick={handleMarkComplete}
             disabled={isMarkingComplete}
-            className={`flex-1 font-semibold py-4 rounded-xl text-center transition-colors flex items-center justify-center gap-2 ${
+            className={`w-full font-semibold px-8 py-4 rounded-xl text-center transition-colors flex items-center justify-center gap-2 ${
               completedCount === workout.exercises.length
                 ? "bg-success hover:bg-success/90 text-white"
                 : "bg-accent hover:bg-accent-hover text-white"
