@@ -197,6 +197,41 @@ export async function getDayCompletionStatus(
   }
 }
 
+// Get all logs for a specific exercise (for PR calculation)
+export async function getExercisePRs(
+  userId: string,
+  exerciseId: string
+): Promise<Record<number, number>> {
+  // Returns a map of reps -> best weight for that rep count
+  try {
+    const response = await fetch(
+      `/api/logs?userId=${encodeURIComponent(userId)}&exerciseId=${encodeURIComponent(exerciseId)}&allLogs=true`
+    );
+    if (!response.ok) return {};
+
+    const data = await response.json();
+    const prMap: Record<number, number> = {};
+
+    // Go through all logs and find best weight for each rep count
+    for (const log of data) {
+      const sets = typeof log.sets === "string" ? JSON.parse(log.sets) : log.sets;
+      for (const set of sets) {
+        if (set.weight > 0 && set.reps > 0) {
+          const reps = set.reps;
+          if (!prMap[reps] || set.weight > prMap[reps]) {
+            prMap[reps] = set.weight;
+          }
+        }
+      }
+    }
+
+    return prMap;
+  } catch (error) {
+    console.error("Error fetching exercise PRs:", error);
+    return {};
+  }
+}
+
 // Get workout history for a user
 export async function getWorkoutHistory(
   userId: string

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Exercise } from "@/lib/program";
-import { ExerciseLog, SetLog, getLastExerciseLog } from "@/lib/storage";
+import { ExerciseLog, SetLog, getLastExerciseLog, getExercisePRs } from "@/lib/storage";
 import { calculate1RM, formatWeight } from "@/lib/calculations";
 import { SetLogger } from "./SetLogger";
 import { YouTubeEmbed } from "./YouTubeEmbed";
@@ -38,25 +38,32 @@ export function ExerciseCard({
   const [isSharing, setIsSharing] = useState(false);
   const [sharingSet, setSharingSet] = useState<SetLog | null>(null);
   const [sharedSets, setSharedSets] = useState<Set<number>>(new Set());
+  const [prRecords, setPrRecords] = useState<Record<number, number>>({});
 
   useEffect(() => {
-    // Get the last workout log for this exercise from database
-    async function fetchLastLog() {
+    // Get the last workout log and PR records for this exercise
+    async function fetchData() {
       setIsLoadingLast(true);
       try {
-        const previousLog = await getLastExerciseLog(userId, exercise.id);
-        // Only set if it's from a different session (not today)
+        const [previousLog, prs] = await Promise.all([
+          getLastExerciseLog(userId, exercise.id),
+          getExercisePRs(userId, exercise.id),
+        ]);
+
+        // Only set lastLog if it's from a different session (not today)
         const today = new Date().toISOString().split("T")[0];
         if (previousLog && previousLog.completedAt.split("T")[0] !== today) {
           setLastLog(previousLog);
         }
+
+        setPrRecords(prs);
       } catch (error) {
-        console.error("Error fetching last log:", error);
+        console.error("Error fetching exercise data:", error);
       }
       setIsLoadingLast(false);
     }
 
-    fetchLastLog();
+    fetchData();
   }, [userId, exercise.id]);
 
   const handleSetChange = (index: number, value: SetLog) => {
@@ -93,6 +100,14 @@ export function ExerciseCard({
   // Check if exercise is complete (all target sets logged)
   const completedSets = log.sets.filter((s) => s.weight > 0 && s.reps > 0).length;
   const isComplete = completedSets >= exercise.sets;
+
+  // Check if a set is a PR (beats previous best for that rep count)
+  const isSetPR = (set: SetLog): boolean => {
+    if (set.weight <= 0 || set.reps <= 0) return false;
+    const previousBest = prRecords[set.reps];
+    // It's a PR if there's no previous record, or this beats it
+    return !previousBest || set.weight > previousBest;
+  };
 
   const toggleGroup = (groupId: number) => {
     setSelectedGroups((prev) =>
@@ -242,6 +257,8 @@ export function ExerciseCard({
                 onShare={() => handleOpenShareModal(set, index)}
                 showRemove={log.sets.length > 1}
                 canShare={groups.length > 0 && !sharedSets.has(index)}
+                isPR={isSetPR(set)}
+                showEstimate={exercise.isCompound}
               />
             ))}
           </div>
@@ -254,10 +271,10 @@ export function ExerciseCard({
             + Add Set
           </button>
 
-          {/* 1RM display for compound lifts */}
-          {best1RM && best1RM > 0 && (
+          {/* Best 1RM this session - for compound lifts */}
+          {best1RM && best1RM > 0 && exercise.isCompound && (
             <div className="mt-4 p-3 bg-accent/10 rounded-lg text-center">
-              <p className="text-sm text-muted">Predicted 1RM</p>
+              <p className="text-sm text-muted">Best e1RM This Session</p>
               <p className="text-2xl font-bold text-accent">
                 {formatWeight(best1RM)}kg
               </p>

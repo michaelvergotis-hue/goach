@@ -49,6 +49,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(result[0] || null);
     }
 
+    // Get all logs for a specific exercise (for PR calculation)
+    const allLogs = searchParams.get("allLogs") === "true";
+    if (exerciseId && allLogs) {
+      const result = await sql`
+        SELECT sets, date FROM workout_logs
+        WHERE user_id = ${userId} AND exercise_id = ${exerciseId}
+        ORDER BY completed_at DESC
+      `;
+      return NextResponse.json(result);
+    }
+
     // Get logs for a specific day and date
     if (day && date) {
       const result = await sql`
