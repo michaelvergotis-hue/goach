@@ -806,7 +806,7 @@ export default function DashboardPage() {
                       </div>
                     )}
 
-                    <div className="flex-1 overflow-y-auto min-h-0">
+                    <div className="flex-1 overflow-y-auto min-h-0 pr-2">
                       <div className="space-y-4 pb-4">
                         {posts.length === 0 ? (
                           <div className="text-center py-12">
