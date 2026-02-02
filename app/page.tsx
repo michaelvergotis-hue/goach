@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { isAuthenticated, setAuthenticated } from "@/lib/storage";
 
 // Change this password or use environment variable in production
-const APP_PASSWORD = "goach123";
+const APP_PASSWORD = "peppies$$$";
 
 export default function LoginPage() {
   const [password, setPassword] = useState("");
