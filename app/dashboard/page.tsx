@@ -14,6 +14,7 @@ import { getAllPhases, getPhaseWorkouts, getWorkoutDay, getPhase } from "@/lib/p
 import { getFriendById, Friend, friends } from "@/lib/friends";
 import { NotificationToggle } from "@/components/NotificationToggle";
 import { SupplementCard } from "@/components/SupplementCard";
+import { PRCard } from "@/components/PRCard";
 
 type TabType = "program" | "feed" | "history";
 
@@ -357,7 +358,7 @@ export default function DashboardPage() {
       <main className="flex-1 flex flex-col px-5 py-6 max-w-6xl mx-auto w-full">
         <div className={`flex-1 ${activeTab === "program" ? "lg:grid lg:grid-cols-12 lg:gap-6" : ""}`}>
           {/* Main Content */}
-          <div className={`flex flex-col min-h-0 ${activeTab === "program" ? "lg:col-span-8" : ""}`}
+          <div className={`flex flex-col min-h-0 ${activeTab === "program" ? "lg:col-span-8" : ""}`}>
             {/* PROGRAM TAB */}
             {activeTab === "program" && (
               <div className="flex flex-col">
@@ -651,13 +652,14 @@ export default function DashboardPage() {
 
           {/* Sidebar - Desktop only, Program tab only */}
           {activeTab === "program" && (
-            <div className="lg:col-span-4 hidden lg:block">
-              <div className="sticky top-6 space-y-4">
+            <div className="lg:col-span-4 hidden lg:flex lg:flex-col">
+              <div className="flex flex-col gap-4 flex-1">
                 <SupplementCard userId={friend.id} />
                 <div className="p-4 bg-card rounded-2xl border border-border">
                   <h3 className="font-semibold mb-3 text-foreground">Notifications</h3>
                   <NotificationToggle userId={friend.id} />
                 </div>
+                <PRCard userId={friend.id} />
               </div>
             </div>
           )}
@@ -671,6 +673,7 @@ export default function DashboardPage() {
               <h3 className="font-semibold mb-3 text-foreground">Notifications</h3>
               <NotificationToggle userId={friend.id} />
             </div>
+            <PRCard userId={friend.id} />
           </div>
         )}
       </main>

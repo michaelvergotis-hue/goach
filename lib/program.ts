@@ -761,3 +761,20 @@ export function getPhaseWorkouts(phaseId: string): { day: string; workout: Worko
 export function getAllDays(): { day: string; workout: WorkoutDay }[] {
   return getPhaseWorkouts("1");
 }
+
+// Get exercise by ID across all phases
+export function getExerciseById(exerciseId: string): Exercise | undefined {
+  for (const phase of Object.values(program)) {
+    for (const workout of Object.values(phase.workouts)) {
+      const exercise = workout.exercises.find((e) => e.id === exerciseId);
+      if (exercise) return exercise;
+    }
+  }
+  return undefined;
+}
+
+// Get exercise name by ID (returns ID as fallback)
+export function getExerciseName(exerciseId: string): string {
+  const exercise = getExerciseById(exerciseId);
+  return exercise?.name || exerciseId.replace(/-/g, " ").replace(/^p\d+\s*/, "");
+}
