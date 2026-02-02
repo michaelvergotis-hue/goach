@@ -13,9 +13,10 @@ interface PRRecord {
 
 interface PRCardProps {
   userId: string;
+  className?: string;
 }
 
-export function PRCard({ userId }: PRCardProps) {
+export function PRCard({ userId, className = "" }: PRCardProps) {
   const [prs, setPrs] = useState<PRRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -49,7 +50,7 @@ export function PRCard({ userId }: PRCardProps) {
 
   if (isLoading) {
     return (
-      <div className="p-4 bg-card rounded-2xl border border-border">
+      <div className={`p-4 bg-card rounded-2xl border border-border ${className}`}>
         <h3 className="font-semibold mb-3 text-foreground flex items-center gap-2">
           <span className="text-lg">🏆</span>
           Personal Records
@@ -62,7 +63,7 @@ export function PRCard({ userId }: PRCardProps) {
   }
 
   return (
-    <div className="p-4 bg-card rounded-2xl border border-border">
+    <div className={`p-4 bg-card rounded-2xl border border-border ${className}`}>
       <h3 className="font-semibold mb-3 text-foreground flex items-center gap-2">
         <span className="text-lg">🏆</span>
         Personal Records

@@ -653,13 +653,15 @@ export default function DashboardPage() {
           {/* Sidebar - Desktop only, Program tab only */}
           {activeTab === "program" && (
             <div className="lg:col-span-4 hidden lg:flex lg:flex-col">
-              <div className="flex flex-col gap-4 flex-1">
+              <div className="flex flex-col gap-4 h-full">
                 <SupplementCard userId={friend.id} />
                 <div className="p-4 bg-card rounded-2xl border border-border">
                   <h3 className="font-semibold mb-3 text-foreground">Notifications</h3>
                   <NotificationToggle userId={friend.id} />
                 </div>
-                <PRCard userId={friend.id} />
+                <div className="flex-1">
+                  <PRCard userId={friend.id} className="h-full" />
+                </div>
               </div>
             </div>
           )}
