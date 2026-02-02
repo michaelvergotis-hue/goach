@@ -1,6 +1,6 @@
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import { friends } from "./friends";
+import { friends, isEmailWhitelisted, getFriendByEmail } from "./friends";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -11,35 +11,39 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ user }) {
-      // Check if user's email matches any friend in the system
       const email = user.email?.toLowerCase();
       if (!email) return false;
 
-      // Find friend by email
-      const friend = friends.find(f => f.email?.toLowerCase() === email);
-      if (friend) {
-        return true;
+      // Only allow whitelisted emails
+      if (!isEmailWhitelisted(email)) {
+        return false;
       }
 
-      // For now, allow all Google sign-ins but they won't be linked to a profile
-      // They can still use the app but will need to select a profile
       return true;
     },
-    async session({ session, token }) {
-      // Add user email to session for profile matching
-      if (session.user && token.email) {
-        const friend = friends.find(f => f.email?.toLowerCase() === token.email?.toLowerCase());
+    async jwt({ token, user }) {
+      // On initial sign in, add friend data to token
+      if (user?.email) {
+        const friend = getFriendByEmail(user.email);
         if (friend) {
-          (session.user as Record<string, unknown>).friendId = friend.id;
-          (session.user as Record<string, unknown>).isAdmin = friend.isAdmin;
+          token.friendId = friend.id;
+          token.isAdmin = friend.isAdmin || false;
         }
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      // Add friend data to session
+      if (session.user) {
+        (session.user as Record<string, unknown>).friendId = token.friendId;
+        (session.user as Record<string, unknown>).isAdmin = token.isAdmin;
       }
       return session;
     },
   },
   pages: {
     signIn: "/",
-    error: "/",
+    error: "/auth/error",
   },
   secret: process.env.NEXTAUTH_SECRET,
 };

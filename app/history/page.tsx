@@ -5,8 +5,6 @@ import { useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import {
-  getSelectedUser,
-  clearSelectedUser,
   getWorkoutHistory,
   HistoryEntry,
 } from "@/lib/storage";
@@ -14,7 +12,7 @@ import { getFriendById, Friend } from "@/lib/friends";
 import { getWorkoutDay } from "@/lib/program";
 
 export default function HistoryPage() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const [isLoading, setIsLoading] = useState(true);
   const [friend, setFriend] = useState<Friend | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -28,15 +26,15 @@ export default function HistoryPage() {
       return;
     }
 
-    const userId = getSelectedUser();
+    const userId = session?.user?.friendId;
     if (!userId) {
-      router.replace("/select");
+      signOut({ callbackUrl: "/" });
       return;
     }
 
     const friendData = getFriendById(userId);
     if (!friendData) {
-      router.replace("/select");
+      signOut({ callbackUrl: "/" });
       return;
     }
 
@@ -49,16 +47,10 @@ export default function HistoryPage() {
     }
 
     loadData();
-  }, [status, router]);
+  }, [status, session, router]);
 
   const handleLogout = () => {
-    clearSelectedUser();
     signOut({ callbackUrl: "/" });
-  };
-
-  const handleSwitchUser = () => {
-    clearSelectedUser();
-    router.replace("/select");
   };
 
   const formatDate = (dateStr: string) => {
@@ -101,12 +93,6 @@ export default function HistoryPage() {
               </div>
               <div>
                 <h1 className="text-lg font-bold">{friend.name}</h1>
-                <button
-                  onClick={handleSwitchUser}
-                  className="text-xs text-muted hover:text-accent transition-colors"
-                >
-                  Switch user
-                </button>
               </div>
             </div>
             <button

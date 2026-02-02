@@ -25,8 +25,6 @@ export interface HistoryEntry {
   exercises_logged: number;
 }
 
-const USER_KEY = "goach_selected_user";
-
 // Save workout log to database
 export async function saveWorkoutLog(
   userId: string,
@@ -183,18 +181,4 @@ export async function getWorkoutHistory(
     console.error("Error fetching workout history:", error);
     return [];
   }
-}
-
-// Selected user helpers
-export function getSelectedUser(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(USER_KEY);
-}
-
-export function setSelectedUser(userId: string): void {
-  localStorage.setItem(USER_KEY, userId);
-}
-
-export function clearSelectedUser(): void {
-  localStorage.removeItem(USER_KEY);
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { getWorkoutDay, WorkoutDay } from "@/lib/program";
 import {
@@ -10,7 +10,6 @@ import {
   WorkoutLog,
   saveWorkoutLog,
   getTodayWorkoutLog,
-  getSelectedUser,
 } from "@/lib/storage";
 import { getFriendById } from "@/lib/friends";
 import { ExerciseCard } from "@/components/ExerciseCard";
@@ -19,7 +18,7 @@ export default function WorkoutPage() {
   const params = useParams();
   const day = params.day as string;
   const router = useRouter();
-  const { status } = useSession();
+  const { data: session, status } = useSession();
 
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
@@ -40,15 +39,15 @@ export default function WorkoutPage() {
       return;
     }
 
-    const selectedUserId = getSelectedUser();
+    const selectedUserId = session?.user?.friendId;
     if (!selectedUserId) {
-      router.replace("/select");
+      signOut({ callbackUrl: "/" });
       return;
     }
 
     const friend = getFriendById(selectedUserId);
     if (!friend) {
-      router.replace("/select");
+      signOut({ callbackUrl: "/" });
       return;
     }
 
@@ -104,7 +103,7 @@ export default function WorkoutPage() {
     }
 
     loadExistingLogs(workoutData);
-  }, [day, status, router]);
+  }, [day, status, session, router]);
 
   // Save progress to database
   const saveProgress = useCallback(async () => {

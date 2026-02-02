@@ -7,15 +7,13 @@ import Link from "next/link";
 import {
   getWorkoutStats,
   getDayCompletionStatus,
-  getSelectedUser,
-  clearSelectedUser,
 } from "@/lib/storage";
 import { getAllDays } from "@/lib/program";
 import { getFriendById, Friend } from "@/lib/friends";
 import { NotificationToggle } from "@/components/NotificationToggle";
 
 export default function DashboardPage() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const [isLoading, setIsLoading] = useState(true);
   const [friend, setFriend] = useState<Friend | null>(null);
   const [workoutDays, setWorkoutDays] = useState<ReturnType<typeof getAllDays>>(
@@ -33,15 +31,19 @@ export default function DashboardPage() {
       return;
     }
 
-    const userId = getSelectedUser();
+    // Get friendId from session (set by NextAuth callback)
+    const userId = session?.user?.friendId;
     if (!userId) {
-      router.replace("/select");
+      // This shouldn't happen if auth is set up correctly
+      console.error("No friendId in session");
+      signOut({ callbackUrl: "/" });
       return;
     }
 
     const friendData = getFriendById(userId);
     if (!friendData) {
-      router.replace("/select");
+      console.error("Friend not found:", userId);
+      signOut({ callbackUrl: "/" });
       return;
     }
 
@@ -62,16 +64,10 @@ export default function DashboardPage() {
     }
 
     loadData();
-  }, [status, router]);
+  }, [status, session, router]);
 
   const handleLogout = () => {
-    clearSelectedUser();
     signOut({ callbackUrl: "/" });
-  };
-
-  const handleSwitchUser = () => {
-    clearSelectedUser();
-    router.replace("/select");
   };
 
   if (isLoading || !friend) {
@@ -94,12 +90,6 @@ export default function DashboardPage() {
               </div>
               <div>
                 <h1 className="text-lg font-bold">{friend.name}</h1>
-                <button
-                  onClick={handleSwitchUser}
-                  className="text-xs text-muted hover:text-accent transition-colors"
-                >
-                  Switch user
-                </button>
               </div>
             </div>
             <button

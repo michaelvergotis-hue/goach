@@ -11,13 +11,13 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      router.replace("/select");
+      router.replace("/dashboard");
     }
   }, [status, router]);
 
   const handleGoogleSignIn = async () => {
     setIsSigningIn(true);
-    await signIn("google", { callbackUrl: "/select" });
+    await signIn("google", { callbackUrl: "/dashboard" });
   };
 
   if (status === "loading") {
