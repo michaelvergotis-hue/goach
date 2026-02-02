@@ -34,9 +34,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "userId required" }, { status: 400 });
     }
 
-    // Get groups the user is a member of
+    // Get groups the user is a member of, including all members
     const groups = await sql`
-      SELECT g.id, g.name, g.created_at
+      SELECT
+        g.id,
+        g.name,
+        g.created_at,
+        (
+          SELECT ARRAY_AGG(gm2.user_id)
+          FROM group_members gm2
+          WHERE gm2.group_id = g.id
+        ) as members
       FROM groups g
       JOIN group_members gm ON g.id = gm.group_id
       WHERE gm.user_id = ${userId}

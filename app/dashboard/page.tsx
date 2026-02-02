@@ -40,6 +40,7 @@ interface FeedPost {
 interface Group {
   id: number;
   name: string;
+  members?: string[];
 }
 
 function parseDayKey(dayKey: string): { phase: string; week: string; day: string } | null {
@@ -790,6 +791,7 @@ export default function DashboardPage() {
                   </div>
                 ) : (
                   <>
+                    {/* Group selector - only if multiple groups */}
                     {groups.length > 1 && (
                       <div className="pb-3 border-b border-border mb-4 flex-shrink-0">
                         <div className="flex gap-2 overflow-x-auto">
@@ -805,6 +807,42 @@ export default function DashboardPage() {
                         </div>
                       </div>
                     )}
+
+                    {/* Group header with members */}
+                    {(() => {
+                      const currentGroup = groups.find(g => g.id === selectedGroup);
+                      if (!currentGroup) return null;
+                      const membersList = currentGroup.members || [];
+                      return (
+                        <div className="mb-4 p-4 bg-card border border-border rounded-2xl flex-shrink-0">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="font-semibold text-lg">{currentGroup.name}</h3>
+                              <p className="text-sm text-muted">{membersList.length} member{membersList.length !== 1 ? 's' : ''}</p>
+                            </div>
+                            <div className="flex -space-x-2">
+                              {membersList.slice(0, 5).map((memberId) => {
+                                const memberFriend = friends.find(f => f.id === memberId);
+                                return (
+                                  <div
+                                    key={memberId}
+                                    className="w-9 h-9 bg-accent/20 border-2 border-card rounded-full flex items-center justify-center text-accent text-xs font-bold"
+                                    title={memberFriend?.name || memberId}
+                                  >
+                                    {memberFriend?.initials || '?'}
+                                  </div>
+                                );
+                              })}
+                              {membersList.length > 5 && (
+                                <div className="w-9 h-9 bg-muted/20 border-2 border-card rounded-full flex items-center justify-center text-muted text-xs font-bold">
+                                  +{membersList.length - 5}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     <div className="flex-1 overflow-y-auto min-h-0 pr-2">
                       <div className="space-y-4 pb-4">

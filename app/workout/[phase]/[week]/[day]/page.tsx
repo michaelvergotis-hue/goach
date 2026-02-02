@@ -227,15 +227,15 @@ export default function WorkoutPage() {
     <div className="min-h-screen pb-24">
       {/* Header */}
       <header className="sticky top-0 bg-background/80 backdrop-blur-lg border-b border-border z-10">
-        <div className="px-4 py-3 max-w-3xl mx-auto">
+        <div className="px-4 py-4 max-w-3xl mx-auto">
           {/* Top row: Back button and saving indicator */}
           <div className="flex items-center justify-between mb-3">
             <Link
               href="/dashboard"
-              className="flex items-center gap-2 px-3 py-2 -ml-3 rounded-lg text-muted hover:text-foreground hover:bg-card transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl text-foreground hover:bg-card-hover transition-colors"
             >
               <svg
-                className="w-5 h-5"
+                className="w-4 h-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -247,20 +247,17 @@ export default function WorkoutPage() {
                   d="M15 19l-7-7 7-7"
                 />
               </svg>
-              <span className="font-medium">Back</span>
+              <span className="font-medium text-sm">Back</span>
             </Link>
-            <div className="flex items-center gap-3">
-              {isSaving && (
-                <span className="text-xs text-muted flex items-center gap-1">
-                  <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-                  Saving...
-                </span>
-              )}
-              <span className="text-xs text-muted bg-card px-2 py-1 rounded-md">
-                {phaseInfo?.name} · Week {week}
+            {isSaving && (
+              <span className="text-xs text-muted flex items-center gap-1">
+                <div className="w-2 h-2 bg-accent rounded-full animate-pulse" />
+                Saving...
               </span>
-            </div>
+            )}
           </div>
+          {/* Phase and week */}
+          <p className="text-sm text-muted mb-1">{phaseInfo?.name} · Week {week}</p>
           {/* Workout title */}
           <h1 className="text-xl font-bold">{workout.name}</h1>
           <p className="text-sm text-muted">{workout.focus}</p>
