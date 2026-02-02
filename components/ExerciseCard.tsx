@@ -36,7 +36,8 @@ export function ExerciseCard({
   const [showShareModal, setShowShareModal] = useState(false);
   const [selectedGroups, setSelectedGroups] = useState<number[]>([]);
   const [isSharing, setIsSharing] = useState(false);
-  const [hasSharedPR, setHasSharedPR] = useState(false);
+  const [sharingSet, setSharingSet] = useState<SetLog | null>(null);
+  const [sharedSets, setSharedSets] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     // Get the last workout log for this exercise from database
@@ -93,15 +94,6 @@ export function ExerciseCard({
   const completedSets = log.sets.filter((s) => s.weight > 0 && s.reps > 0).length;
   const isComplete = completedSets >= exercise.sets;
 
-  // Find best set by estimated 1RM (for PR sharing)
-  const bestSet = log.sets.reduce<SetLog | null>((best, set) => {
-    if (set.weight <= 0 || set.reps <= 0) return best;
-    if (!best) return set;
-    const current1RM = calculate1RM(set.weight, set.reps);
-    const best1RMScore = calculate1RM(best.weight, best.reps);
-    return current1RM > best1RMScore ? set : best;
-  }, null);
-
   const toggleGroup = (groupId: number) => {
     setSelectedGroups((prev) =>
       prev.includes(groupId)
@@ -110,8 +102,15 @@ export function ExerciseCard({
     );
   };
 
+  const handleOpenShareModal = (set: SetLog, setIndex: number) => {
+    if (sharedSets.has(setIndex)) return; // Already shared
+    setSharingSet(set);
+    setSelectedGroups([]);
+    setShowShareModal(true);
+  };
+
   const handleSharePR = async () => {
-    if (!bestSet || selectedGroups.length === 0) return;
+    if (!sharingSet || selectedGroups.length === 0) return;
 
     setIsSharing(true);
     try {
@@ -125,14 +124,21 @@ export function ExerciseCard({
             postType: "pr",
             content: {
               exerciseName: exercise.name,
-              weight: bestSet.weight,
-              reps: bestSet.reps,
+              weight: sharingSet.weight,
+              reps: sharingSet.reps,
             },
           }),
         });
       }
-      setHasSharedPR(true);
+      // Mark this set as shared
+      const setIndex = log.sets.findIndex(
+        (s) => s.weight === sharingSet.weight && s.reps === sharingSet.reps
+      );
+      if (setIndex !== -1) {
+        setSharedSets((prev) => new Set([...prev, setIndex]));
+      }
       setShowShareModal(false);
+      setSharingSet(null);
     } catch (error) {
       console.error("Error sharing PR:", error);
     } finally {
@@ -233,7 +239,9 @@ export function ExerciseCard({
                 value={set}
                 onChange={(value) => handleSetChange(index, value)}
                 onRemove={() => handleRemoveSet(index)}
+                onShare={() => handleOpenShareModal(set, index)}
                 showRemove={log.sets.length > 1}
+                canShare={groups.length > 0 && !sharedSets.has(index)}
               />
             ))}
           </div>
@@ -256,32 +264,6 @@ export function ExerciseCard({
             </div>
           )}
 
-          {/* Share PR button */}
-          {bestSet && groups.length > 0 && (
-            <div className="mt-4">
-              {hasSharedPR ? (
-                <div className="w-full py-2 bg-success/20 text-success rounded-lg text-sm font-medium text-center flex items-center justify-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  PR Shared!
-                </div>
-              ) : (
-                <button
-                  onClick={() => {
-                    setSelectedGroups([]);
-                    setShowShareModal(true);
-                  }}
-                  className="w-full py-2 bg-accent/10 hover:bg-accent/20 text-accent rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
-                >
-                  <span>🏆</span>
-                  Share {formatWeight(bestSet.weight)}kg × {bestSet.reps} as PR
-                  <span className="text-xs opacity-70">({formatWeight(calculate1RM(bestSet.weight, bestSet.reps))}kg e1RM)</span>
-                </button>
-              )}
-            </div>
-          )}
-
           {/* Notes */}
           <div className="mt-4">
             <textarea
@@ -301,13 +283,13 @@ export function ExerciseCard({
       )}
 
       {/* Share PR Modal */}
-      {showShareModal && bestSet && (
+      {showShareModal && sharingSet && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setShowShareModal(false)}>
           <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-xl font-bold mb-2">Share PR 🏆</h2>
             <p className="text-muted text-sm mb-1">{exercise.name}</p>
             <p className="text-accent font-bold text-lg mb-4">
-              {formatWeight(bestSet.weight)}kg × {bestSet.reps} reps
+              {formatWeight(sharingSet.weight)}kg × {sharingSet.reps} reps
             </p>
 
             <p className="text-sm text-muted mb-2">Share to:</p>

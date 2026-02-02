@@ -347,8 +347,8 @@ export default function WorkoutPage() {
       {/* Bottom action bar */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur-lg border-t border-border">
         <div className="max-w-3xl mx-auto flex gap-3">
-          {/* Share button - only when all exercises done and in a group */}
-          {completedCount === workout.exercises.length && groups.length > 0 && !hasShared && (
+          {/* Share workout button - always visible when in a group */}
+          {groups.length > 0 && !hasShared && (
             <button
               onClick={() => setShowShareModal(true)}
               className="px-4 py-4 bg-card hover:bg-card-hover border border-border text-foreground font-semibold rounded-xl transition-colors flex items-center gap-2"
