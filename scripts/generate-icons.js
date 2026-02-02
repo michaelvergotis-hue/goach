@@ -18,9 +18,19 @@ async function generateIcons() {
     .toBuffer();
 
   for (const { name, size } of sizes) {
-    // Resize trimmed image to fill icon with white background
+    const padding = Math.round(size * 0.12); // 12% padding
+    const imageSize = size - (padding * 2);
+
+    // Resize trimmed image with some padding
     await sharp(trimmed)
-      .resize(size, size, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+      .resize(imageSize, imageSize, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
+      .extend({
+        top: padding,
+        bottom: padding,
+        left: padding,
+        right: padding,
+        background: { r: 255, g: 255, b: 255, alpha: 1 }
+      })
       .flatten({ background: { r: 255, g: 255, b: 255 } }) // Flatten transparency to white
       .png()
       .toFile(path.join(PUBLIC_DIR, name));
