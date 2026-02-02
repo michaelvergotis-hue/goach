@@ -1,6 +1,6 @@
 // Push notification utilities
 
-const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ||
+const VAPID_PUBLIC_KEY =
   "BOMn1RreEF-Z2PhTXW05efqMZp5kiXojbkf2AruZi27MaVVPhmsEUr9cLONSARE4wDtaWk3scHA8cBTlPNwI4pE";
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
@@ -36,8 +36,17 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
 
 export async function subscribeToPush(userId: string): Promise<boolean> {
   try {
+    // Check if we're in a secure context
+    if (!window.isSecureContext) {
+      console.log("Not in secure context");
+      return false;
+    }
+
     const registration = await registerServiceWorker();
     if (!registration) return false;
+
+    // Wait for service worker to be ready
+    await navigator.serviceWorker.ready;
 
     // Check if push is supported
     if (!("PushManager" in window)) {
@@ -105,16 +114,39 @@ export async function isPushSubscribed(): Promise<boolean> {
       return false;
     }
 
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription();
-    return subscription !== null;
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise<boolean>((resolve) => {
+      setTimeout(() => resolve(false), 3000);
+    });
+
+    const checkPromise = async (): Promise<boolean> => {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      return subscription !== null;
+    };
+
+    return await Promise.race([checkPromise(), timeoutPromise]);
   } catch {
     return false;
   }
 }
 
 export function isPushSupported(): boolean {
-  return "serviceWorker" in navigator &&
-         "PushManager" in window &&
-         "Notification" in window;
+  // Must be in browser
+  if (typeof window === "undefined") return false;
+
+  // Must have required APIs
+  if (!("serviceWorker" in navigator)) return false;
+  if (!("PushManager" in window)) return false;
+  if (!("Notification" in window)) return false;
+
+  // On iOS, must be in standalone mode (added to home screen)
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  if (isIOS) {
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+    return isStandalone;
+  }
+
+  return true;
 }
