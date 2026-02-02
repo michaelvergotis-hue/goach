@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 
 interface Supplement {
@@ -27,11 +27,7 @@ export function SupplementCard({ userId }: { userId: string }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  useEffect(() => {
-    fetchToday();
-  }, [userId]);
-
-  const fetchToday = async () => {
+  const fetchToday = useCallback(async () => {
     try {
       const response = await fetch(
         `/api/supplements?userId=${encodeURIComponent(userId)}&type=today`
@@ -45,7 +41,11 @@ export function SupplementCard({ userId }: { userId: string }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userId]);
+
+  useEffect(() => {
+    fetchToday();
+  }, [fetchToday]);
 
   const handleMarkTaken = async () => {
     setIsUpdating(true);

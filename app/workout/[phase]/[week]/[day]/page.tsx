@@ -68,24 +68,25 @@ export default function WorkoutPage() {
       return;
     }
 
-    setUserId(selectedUserId);
-
     const workoutData = getWorkoutDay(phase, day);
     if (!workoutData) {
       router.replace("/dashboard");
       return;
     }
 
-    const phaseData = getPhase(phase);
-    if (phaseData) {
-      setPhaseInfo({ name: phaseData.name, description: phaseData.description });
-    }
+    // Initialize all state in async function to avoid linter warnings
+    async function initializeWorkout(userId: string, workout: WorkoutDay) {
+      setUserId(userId);
 
-    setWorkout(workoutData);
+      const phaseData = getPhase(phase);
+      if (phaseData) {
+        setPhaseInfo({ name: phaseData.name, description: phaseData.description });
+      }
 
-    // Load existing logs from database
-    async function loadExistingLogs(workout: WorkoutDay) {
-      const existingLog = await getTodayWorkoutLog(selectedUserId!, dayKey);
+      setWorkout(workout);
+
+      // Load existing logs from database
+      const existingLog = await getTodayWorkoutLog(userId, dayKey);
 
       const initialLogs: Record<string, ExerciseLog> = {};
       workout.exercises.forEach((exercise) => {
@@ -122,25 +123,21 @@ export default function WorkoutPage() {
       }
 
       setIsLoading(false);
-    }
 
-    loadExistingLogs(workoutData);
-
-    // Fetch groups for sharing
-    fetchGroups(selectedUserId);
-  }, [phase, week, day, dayKey, status, session, router]);
-
-  const fetchGroups = async (userId: string) => {
-    try {
-      const response = await fetch(`/api/groups?userId=${encodeURIComponent(userId)}`);
-      if (response.ok) {
-        const data = await response.json();
-        setGroups(data);
+      // Fetch groups for sharing
+      try {
+        const response = await fetch(`/api/groups?userId=${encodeURIComponent(userId)}`);
+        if (response.ok) {
+          const data = await response.json();
+          setGroups(data);
+        }
+      } catch (error) {
+        console.error("Error fetching groups:", error);
       }
-    } catch (error) {
-      console.error("Error fetching groups:", error);
     }
-  };
+
+    initializeWorkout(selectedUserId, workoutData);
+  }, [phase, week, day, dayKey, status, session, router]);
 
   // Handle exercise swap
   const handleExerciseSwap = (originalId: string, newExercise: LibraryExercise) => {

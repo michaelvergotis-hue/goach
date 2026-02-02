@@ -289,11 +289,6 @@ export default function DashboardPage() {
     return sessionStatuses[key]?.status as "completed" | "missed" | null || null;
   };
 
-  const isDayDone = (day: string) => {
-    const status = getDayStatus(day);
-    return status === "completed" || status === "missed";
-  };
-
   const handleMarkMissed = async (day: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -901,7 +896,7 @@ export default function DashboardPage() {
                       >
                         All
                       </button>
-                      {phases.map(({ id, phase }) => (
+                      {phases.map(({ id }) => (
                         <button
                           key={id}
                           onClick={() => { setHistoryPhase(id); setHistoryWeek("all"); }}

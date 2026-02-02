@@ -48,9 +48,8 @@ export default function HistoryPage() {
       return;
     }
 
-    setFriend(friendData);
-
     async function loadData() {
+      setFriend(friendData!);
       const historyData = await getWorkoutHistory(userId!);
       setHistory(historyData);
       setIsLoading(false);

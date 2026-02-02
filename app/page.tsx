@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
+import Image from "next/image";
 
 export default function LoginPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const [isSigningIn, setIsSigningIn] = useState(false);
   const router = useRouter();
 
@@ -33,10 +34,13 @@ export default function LoginPage() {
       <div className="w-full max-w-sm md:max-w-md">
         {/* Logo/Title */}
         <div className="text-center mb-10">
-          <img
+          <Image
             src="/logo.png"
             alt="G.O.A.C.H"
-            className="w-80 h-80 mx-auto mb-2 object-contain"
+            width={320}
+            height={320}
+            className="mx-auto mb-2 object-contain"
+            priority
           />
           <p className="text-muted text-lg">Where GOATs are made</p>
         </div>

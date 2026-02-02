@@ -40,14 +40,6 @@ export function PRCard({ userId, className = "" }: PRCardProps) {
     fetchPRs();
   }, [userId]);
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("en-AU", {
-      day: "numeric",
-      month: "short",
-    });
-  };
-
   if (isLoading) {
     return (
       <div className={`p-4 bg-card rounded-2xl border border-border ${className}`}>

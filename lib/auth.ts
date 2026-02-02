@@ -1,6 +1,6 @@
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import { friends, isEmailWhitelisted, getFriendByEmail } from "./friends";
+import { isEmailWhitelisted, getFriendByEmail } from "./friends";
 
 export const authOptions: NextAuthOptions = {
   providers: [
