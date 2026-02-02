@@ -7,6 +7,11 @@ import { calculate1RM, formatWeight } from "@/lib/calculations";
 import { SetLogger } from "./SetLogger";
 import { YouTubeEmbed } from "./YouTubeEmbed";
 
+interface Group {
+  id: number;
+  name: string;
+}
+
 interface ExerciseCardProps {
   exercise: Exercise;
   userId: string;
@@ -14,6 +19,7 @@ interface ExerciseCardProps {
   onLogChange: (log: ExerciseLog) => void;
   isExpanded: boolean;
   onToggle: () => void;
+  groups?: Group[];
 }
 
 export function ExerciseCard({
@@ -23,9 +29,14 @@ export function ExerciseCard({
   onLogChange,
   isExpanded,
   onToggle,
+  groups = [],
 }: ExerciseCardProps) {
   const [lastLog, setLastLog] = useState<ExerciseLog | null>(null);
   const [isLoadingLast, setIsLoadingLast] = useState(true);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [selectedGroups, setSelectedGroups] = useState<number[]>([]);
+  const [isSharing, setIsSharing] = useState(false);
+  const [hasSharedPR, setHasSharedPR] = useState(false);
 
   useEffect(() => {
     // Get the last workout log for this exercise from database
@@ -81,6 +92,53 @@ export function ExerciseCard({
   // Check if exercise is complete (all target sets logged)
   const completedSets = log.sets.filter((s) => s.weight > 0 && s.reps > 0).length;
   const isComplete = completedSets >= exercise.sets;
+
+  // Find best set (highest weight × reps)
+  const bestSet = log.sets.reduce<SetLog | null>((best, set) => {
+    if (set.weight <= 0 || set.reps <= 0) return best;
+    if (!best) return set;
+    const currentScore = set.weight * set.reps;
+    const bestScore = best.weight * best.reps;
+    return currentScore > bestScore ? set : best;
+  }, null);
+
+  const toggleGroup = (groupId: number) => {
+    setSelectedGroups((prev) =>
+      prev.includes(groupId)
+        ? prev.filter((id) => id !== groupId)
+        : [...prev, groupId]
+    );
+  };
+
+  const handleSharePR = async () => {
+    if (!bestSet || selectedGroups.length === 0) return;
+
+    setIsSharing(true);
+    try {
+      for (const groupId of selectedGroups) {
+        await fetch("/api/feed", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            groupId,
+            userId,
+            postType: "pr",
+            content: {
+              exerciseName: exercise.name,
+              weight: bestSet.weight,
+              reps: bestSet.reps,
+            },
+          }),
+        });
+      }
+      setHasSharedPR(true);
+      setShowShareModal(false);
+    } catch (error) {
+      console.error("Error sharing PR:", error);
+    } finally {
+      setIsSharing(false);
+    }
+  };
 
   return (
     <div
@@ -198,6 +256,31 @@ export function ExerciseCard({
             </div>
           )}
 
+          {/* Share PR button */}
+          {bestSet && groups.length > 0 && (
+            <div className="mt-4">
+              {hasSharedPR ? (
+                <div className="w-full py-2 bg-success/20 text-success rounded-lg text-sm font-medium text-center flex items-center justify-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  PR Shared!
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setSelectedGroups([]);
+                    setShowShareModal(true);
+                  }}
+                  className="w-full py-2 bg-accent/10 hover:bg-accent/20 text-accent rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                >
+                  <span>🏆</span>
+                  Share {formatWeight(bestSet.weight)}kg × {bestSet.reps} as PR
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Notes */}
           <div className="mt-4">
             <textarea
@@ -213,6 +296,64 @@ export function ExerciseCard({
           {exercise.youtubeId && (
             <YouTubeEmbed videoId={exercise.youtubeId} title={exercise.name} />
           )}
+        </div>
+      )}
+
+      {/* Share PR Modal */}
+      {showShareModal && bestSet && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setShowShareModal(false)}>
+          <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-bold mb-2">Share PR 🏆</h2>
+            <p className="text-muted text-sm mb-1">{exercise.name}</p>
+            <p className="text-accent font-bold text-lg mb-4">
+              {formatWeight(bestSet.weight)}kg × {bestSet.reps} reps
+            </p>
+
+            <p className="text-sm text-muted mb-2">Share to:</p>
+            <div className="space-y-2 mb-4">
+              {groups.map((group) => (
+                <button
+                  key={group.id}
+                  onClick={() => toggleGroup(group.id)}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-colors ${
+                    selectedGroups.includes(group.id)
+                      ? "bg-accent/10 border-accent"
+                      : "bg-background border-border hover:bg-card-hover"
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                    selectedGroups.includes(group.id)
+                      ? "bg-accent text-white"
+                      : "bg-accent/20 text-accent"
+                  }`}>
+                    {group.name.charAt(0)}
+                  </div>
+                  <span className="flex-1 text-left">{group.name}</span>
+                  {selectedGroups.includes(group.id) && (
+                    <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="flex-1 py-3 bg-background border border-border rounded-xl font-medium hover:bg-card-hover transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSharePR}
+                disabled={isSharing || selectedGroups.length === 0}
+                className="flex-1 py-3 bg-accent text-white rounded-xl font-medium hover:bg-accent-hover transition-colors disabled:opacity-50"
+              >
+                {isSharing ? "Sharing..." : "Share PR"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

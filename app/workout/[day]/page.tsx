@@ -297,6 +297,7 @@ export default function WorkoutPage() {
                 expandedExercise === exercise.id ? null : exercise.id
               )
             }
+            groups={groups}
           />
         ))}
       </main>
