@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { getAuthInfo } from "@/lib/server/auth";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 // POST - Subscribe to push notifications
 export async function POST(request: NextRequest) {
+  const auth = await getAuthInfo();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const sql = getDb();
     const body = await request.json();
@@ -16,6 +22,10 @@ export async function POST(request: NextRequest) {
         { error: "Missing required fields" },
         { status: 400 }
       );
+    }
+
+    if (userId !== auth.userId && !auth.isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Upsert subscription
@@ -40,6 +50,11 @@ export async function POST(request: NextRequest) {
 
 // DELETE - Unsubscribe from push notifications
 export async function DELETE(request: NextRequest) {
+  const auth = await getAuthInfo();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const sql = getDb();
     const body = await request.json();
@@ -54,7 +69,9 @@ export async function DELETE(request: NextRequest) {
     }
 
     await sql`
-      DELETE FROM push_subscriptions WHERE endpoint = ${endpoint}
+      DELETE FROM push_subscriptions
+      WHERE endpoint = ${endpoint}
+        AND (${auth.isAdmin} OR user_id = ${auth.userId})
     `;
 
     return NextResponse.json({ success: true });

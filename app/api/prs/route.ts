@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { getAuthInfo } from "@/lib/server/auth";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 interface SetData {
   weight: number;
@@ -18,22 +19,32 @@ interface PRRecord {
 
 // GET - Fetch personal records for a user
 export async function GET(request: NextRequest) {
+  const auth = await getAuthInfo();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const sql = getDb();
     const { searchParams } = new URL(request.url);
 
     const userId = searchParams.get("userId");
-    const limit = parseInt(searchParams.get("limit") || "5");
+    const limitRaw = searchParams.get("limit") || "5";
+    const limitParsed = parseInt(limitRaw, 10);
+    const limit = Number.isFinite(limitParsed)
+      ? Math.min(Math.max(limitParsed, 1), 50)
+      : 5;
 
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 });
+    if (userId && userId !== auth.userId && !auth.isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+    const effectiveUserId = userId || auth.userId;
 
     // Get all workout logs for this user
     const logs = await sql`
       SELECT exercise_id, sets, date
       FROM workout_logs
-      WHERE user_id = ${userId}
+      WHERE user_id = ${effectiveUserId}
       ORDER BY date DESC
     `;
 

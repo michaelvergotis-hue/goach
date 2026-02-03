@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { getAuthInfo } from "@/lib/server/auth";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 // DELETE - Clear workout data for a user
 export async function DELETE(request: NextRequest) {
+  const auth = await getAuthInfo();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!auth.isAdmin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   try {
     const sql = getDb();
     const { searchParams } = new URL(request.url);

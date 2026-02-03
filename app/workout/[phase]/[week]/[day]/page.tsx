@@ -126,7 +126,7 @@ export default function WorkoutPage() {
 
       // Fetch groups for sharing
       try {
-        const response = await fetch(`/api/groups?userId=${encodeURIComponent(userId)}`);
+        const response = await fetch("/api/groups");
         if (response.ok) {
           const data = await response.json();
           setGroups(data);

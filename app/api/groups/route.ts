@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { getAuthInfo } from "@/lib/server/auth";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 // GET - fetch groups for a user, or all groups (admin)
 export async function GET(request: NextRequest) {
+  const auth = await getAuthInfo();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get("userId");
   const all = searchParams.get("all"); // For admin to get all groups
@@ -13,6 +19,9 @@ export async function GET(request: NextRequest) {
 
   try {
     if (all === "true") {
+      if (!auth.isAdmin) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
       // Get all groups with member counts (admin)
       const groups = await sql`
         SELECT
@@ -30,9 +39,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(groups);
     }
 
-    if (!userId) {
-      return NextResponse.json({ error: "userId required" }, { status: 400 });
+    if (userId && userId !== auth.userId && !auth.isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+    const effectiveUserId = userId || auth.userId;
 
     // Get groups the user is a member of, including all members
     const groups = await sql`
@@ -47,7 +57,7 @@ export async function GET(request: NextRequest) {
         ) as members
       FROM groups g
       JOIN group_members gm ON g.id = gm.group_id
-      WHERE gm.user_id = ${userId}
+      WHERE gm.user_id = ${effectiveUserId}
       ORDER BY g.name
     `;
     return NextResponse.json(groups);
@@ -59,12 +69,20 @@ export async function GET(request: NextRequest) {
 
 // POST - create a new group (admin)
 export async function POST(request: NextRequest) {
+  const auth = await getAuthInfo();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!auth.isAdmin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   try {
     const body = await request.json();
-    const { name, createdBy, members } = body;
+    const { name, members } = body;
 
-    if (!name || !createdBy) {
-      return NextResponse.json({ error: "name and createdBy required" }, { status: 400 });
+    if (!name) {
+      return NextResponse.json({ error: "name required" }, { status: 400 });
     }
 
     const sql = getDb();
@@ -72,7 +90,7 @@ export async function POST(request: NextRequest) {
     // Create the group
     const [group] = await sql`
       INSERT INTO groups (name, created_by)
-      VALUES (${name}, ${createdBy})
+      VALUES (${name}, ${auth.userId})
       RETURNING id, name, created_at
     `;
 
@@ -96,6 +114,14 @@ export async function POST(request: NextRequest) {
 
 // PUT - update group members
 export async function PUT(request: NextRequest) {
+  const auth = await getAuthInfo();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!auth.isAdmin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   try {
     const body = await request.json();
     const { groupId, members } = body;
@@ -104,16 +130,21 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "groupId and members required" }, { status: 400 });
     }
 
+    const groupIdNum = typeof groupId === "number" ? groupId : parseInt(String(groupId));
+    if (!Number.isFinite(groupIdNum)) {
+      return NextResponse.json({ error: "Invalid groupId" }, { status: 400 });
+    }
+
     const sql = getDb();
 
     // Remove all existing members
-    await sql`DELETE FROM group_members WHERE group_id = ${groupId}`;
+    await sql`DELETE FROM group_members WHERE group_id = ${groupIdNum}`;
 
     // Add new members
     for (const userId of members) {
       await sql`
         INSERT INTO group_members (group_id, user_id)
-        VALUES (${groupId}, ${userId})
+        VALUES (${groupIdNum}, ${userId})
         ON CONFLICT (group_id, user_id) DO NOTHING
       `;
     }
@@ -127,6 +158,14 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - delete a group
 export async function DELETE(request: NextRequest) {
+  const auth = await getAuthInfo();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!auth.isAdmin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const { searchParams } = new URL(request.url);
   const groupId = searchParams.get("groupId");
 
@@ -135,9 +174,13 @@ export async function DELETE(request: NextRequest) {
   }
 
   const sql = getDb();
+  const groupIdNum = parseInt(groupId);
+  if (!Number.isFinite(groupIdNum)) {
+    return NextResponse.json({ error: "Invalid groupId" }, { status: 400 });
+  }
 
   try {
-    await sql`DELETE FROM groups WHERE id = ${parseInt(groupId)}`;
+    await sql`DELETE FROM groups WHERE id = ${groupIdNum}`;
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting group:", error);

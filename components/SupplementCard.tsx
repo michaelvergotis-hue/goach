@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { getFriendById } from "@/lib/friends";
 
 interface Supplement {
   name: string;
@@ -40,6 +39,7 @@ export function SupplementCard({ userId }: { userId: string }) {
   const [notifyMessage, setNotifyMessage] = useState("");
   const [isSendingNotify, setIsSendingNotify] = useState(false);
   const [notifySent, setNotifySent] = useState(false);
+  const [notifyError, setNotifyError] = useState<string | null>(null);
 
   const fetchToday = useCallback(async () => {
     try {
@@ -59,7 +59,7 @@ export function SupplementCard({ userId }: { userId: string }) {
 
   const fetchGroups = useCallback(async () => {
     try {
-      const response = await fetch(`/api/groups?userId=${encodeURIComponent(userId)}`);
+      const response = await fetch("/api/groups");
       if (response.ok) {
         const groupsData = await response.json();
         setGroups(groupsData);
@@ -67,7 +67,7 @@ export function SupplementCard({ userId }: { userId: string }) {
     } catch (error) {
       console.error("Error fetching groups:", error);
     }
-  }, [userId]);
+  }, []);
 
   useEffect(() => {
     fetchToday();
@@ -115,6 +115,7 @@ export function SupplementCard({ userId }: { userId: string }) {
   const handleOpenNotify = () => {
     setSelectedGroups([]);
     setNotifyMessage("");
+    setNotifyError(null);
     setShowNotifyModal(true);
   };
 
@@ -130,27 +131,39 @@ export function SupplementCard({ userId }: { userId: string }) {
     if (selectedGroups.length === 0) return;
 
     setIsSendingNotify(true);
-    const friend = getFriendById(userId);
-    const userName = friend?.name || "Someone";
+    setNotifyError(null);
 
     try {
       // Send notification to each selected group
+      let sent = 0;
+      let failed = 0;
       for (const groupId of selectedGroups) {
-        await fetch("/api/supplements/notify", {
+        const response = await fetch("/api/supplements/notify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            userId,
-            userName,
             groupId,
             message: notifyMessage.trim(),
           }),
         });
+        if (response.ok) {
+          sent++;
+        } else {
+          failed++;
+        }
       }
-      setShowNotifyModal(false);
-      setNotifySent(true);
+
+      if (failed === 0) {
+        setShowNotifyModal(false);
+        setNotifySent(true);
+      } else {
+        setNotifyError(
+          `Sent to ${sent} group${sent === 1 ? "" : "s"}, failed for ${failed}. Try again.`
+        );
+      }
     } catch (error) {
       console.error("Error sending notification:", error);
+      setNotifyError("Failed to send. Please try again.");
     } finally {
       setIsSendingNotify(false);
     }
@@ -366,6 +379,10 @@ export function SupplementCard({ userId }: { userId: string }) {
                 {isSendingNotify ? "Sending..." : "Send"}
               </button>
             </div>
+
+            {notifyError && (
+              <p className="text-sm text-red-400 mt-3 text-center">{notifyError}</p>
+            )}
           </div>
         </div>
       )}

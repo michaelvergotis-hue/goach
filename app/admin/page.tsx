@@ -15,7 +15,7 @@ interface Group {
 }
 
 export default function AdminPage() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"reminders" | "groups" | "data">("reminders");
 
@@ -49,9 +49,15 @@ export default function AdminPage() {
       router.replace("/");
       return;
     }
+
+    const isAdmin = (session?.user as { isAdmin?: boolean } | undefined)?.isAdmin === true;
+    if (!isAdmin) {
+      router.replace("/dashboard");
+      return;
+    }
     setIsLoading(false);
     fetchGroups();
-  }, [status, router]);
+  }, [status, session, router]);
 
   const fetchGroups = async () => {
     try {

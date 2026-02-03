@@ -10,6 +10,10 @@
   --success: #22c55e;
   --border: #262626;
   --muted: #737373;
+  /* Keep these defined even if we don't load a custom font. */
+  --font-geist-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-geist-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
 }
 
 @theme inline {

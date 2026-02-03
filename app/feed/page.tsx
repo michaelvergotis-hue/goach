@@ -64,7 +64,7 @@ function FeedContent() {
     }
 
     setFriend(friendData);
-    fetchGroups(userId);
+    fetchGroups();
   }, [status, session, router]);
 
   useEffect(() => {
@@ -92,9 +92,9 @@ function FeedContent() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [posts]);
 
-  const fetchGroups = async (userId: string) => {
+  const fetchGroups = async () => {
     try {
-      const response = await fetch(`/api/groups?userId=${encodeURIComponent(userId)}`);
+      const response = await fetch("/api/groups");
       if (response.ok) {
         const data = await response.json();
         setGroups(data);

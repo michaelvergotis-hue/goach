@@ -101,7 +101,7 @@ export default function DashboardPage() {
       setHistory(historyData);
 
       try {
-        const response = await fetch(`/api/groups?userId=${encodeURIComponent(userId!)}`);
+        const response = await fetch("/api/groups");
         if (response.ok) {
           const groupsData = await response.json();
           setGroups(groupsData);

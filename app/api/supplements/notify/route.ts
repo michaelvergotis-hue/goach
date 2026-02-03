@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
 import webpush from "web-push";
+import { getAuthInfo } from "@/lib/server/auth";
+import { getFriendById } from "@/lib/friends";
 
 export const runtime = "nodejs";
 
@@ -17,23 +19,48 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
 
 // POST - Send supplement notification to group members
 export async function POST(request: NextRequest) {
+  const auth = await getAuthInfo();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
-    const { userId, userName, groupId, message } = body;
+    const { userId, groupId, message } = body;
 
-    if (!userId || !groupId) {
+    if (!groupId) {
       return NextResponse.json(
-        { error: "userId and groupId are required" },
+        { error: "groupId is required" },
         { status: 400 }
       );
     }
 
+    if (userId && userId !== auth.userId && !auth.isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const sql = neon(process.env.DATABASE_URL!);
+
+    const groupIdNum = typeof groupId === "number" ? groupId : parseInt(String(groupId));
+    if (!Number.isFinite(groupIdNum)) {
+      return NextResponse.json({ error: "Invalid groupId" }, { status: 400 });
+    }
+
+    // Verify sender is a member of the group (unless admin)
+    if (!auth.isAdmin) {
+      const [membership] = await sql`
+        SELECT 1 FROM group_members
+        WHERE group_id = ${groupIdNum} AND user_id = ${auth.userId}
+      `;
+      if (!membership) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    }
 
     // Get group members (excluding the sender)
     const groupMembers = await sql`
       SELECT user_id FROM group_members
-      WHERE group_id = ${groupId} AND user_id != ${userId}
+      WHERE group_id = ${groupIdNum} AND user_id != ${auth.userId}
     `;
 
     if (groupMembers.length === 0) {
@@ -61,6 +88,7 @@ export async function POST(request: NextRequest) {
 
     // Build notification payload
     const notificationTitle = "Supplements Taken 💊";
+    const userName = getFriendById(auth.userId)?.name || "Someone";
     const notificationBody = message
       ? `${userName} has taken their supplements: "${message}"`
       : `${userName} has taken their supplements!`;

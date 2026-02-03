@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { getAuthInfo } from "@/lib/server/auth";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 // GET - Fetch workout logs
 export async function GET(request: NextRequest) {
+  const auth = await getAuthInfo();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const sql = getDb();
     const { searchParams } = new URL(request.url);
@@ -16,9 +22,10 @@ export async function GET(request: NextRequest) {
     const lastOnly = searchParams.get("lastOnly") === "true";
     const history = searchParams.get("history") === "true";
 
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 });
+    if (userId && userId !== auth.userId && !auth.isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+    const effectiveUserId = userId || auth.userId;
 
     // Get workout history for a user (only completed workouts)
     if (history) {
@@ -30,7 +37,7 @@ export async function GET(request: NextRequest) {
           ON wl.user_id = wss.user_id
           AND wl.day = wss.day
           AND wss.status = 'completed'
-        WHERE wl.user_id = ${userId}
+        WHERE wl.user_id = ${effectiveUserId}
         GROUP BY wl.day, wl.date
         ORDER BY wl.date DESC
         LIMIT 50
@@ -42,7 +49,7 @@ export async function GET(request: NextRequest) {
     if (exerciseId && lastOnly) {
       const result = await sql`
         SELECT * FROM workout_logs
-        WHERE user_id = ${userId} AND exercise_id = ${exerciseId}
+        WHERE user_id = ${effectiveUserId} AND exercise_id = ${exerciseId}
         ORDER BY completed_at DESC
         LIMIT 1
       `;
@@ -54,7 +61,7 @@ export async function GET(request: NextRequest) {
     if (exerciseId && allLogs) {
       const result = await sql`
         SELECT sets, date FROM workout_logs
-        WHERE user_id = ${userId} AND exercise_id = ${exerciseId}
+        WHERE user_id = ${effectiveUserId} AND exercise_id = ${exerciseId}
         ORDER BY completed_at DESC
       `;
       return NextResponse.json(result);
@@ -64,7 +71,7 @@ export async function GET(request: NextRequest) {
     if (day && date) {
       const result = await sql`
         SELECT * FROM workout_logs
-        WHERE user_id = ${userId} AND day = ${day} AND date = ${date}
+        WHERE user_id = ${effectiveUserId} AND day = ${day} AND date = ${date}
         ORDER BY id
       `;
       return NextResponse.json(result);
@@ -73,7 +80,7 @@ export async function GET(request: NextRequest) {
     // Get all logs summary (for stats)
     const result = await sql`
       SELECT DISTINCT day, date FROM workout_logs
-      WHERE user_id = ${userId}
+      WHERE user_id = ${effectiveUserId}
       ORDER BY date DESC
       LIMIT 100
     `;
@@ -89,6 +96,11 @@ export async function GET(request: NextRequest) {
 
 // POST - Save workout log
 export async function POST(request: NextRequest) {
+  const auth = await getAuthInfo();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const sql = getDb();
     const body = await request.json();
@@ -100,6 +112,10 @@ export async function POST(request: NextRequest) {
         { error: "Missing required fields" },
         { status: 400 }
       );
+    }
+
+    if (userId !== auth.userId && !auth.isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Upsert each exercise log

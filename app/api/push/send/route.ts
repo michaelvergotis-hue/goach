@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neon } from "@neondatabase/serverless";
 import webpush from "web-push";
+import { getAuthInfo } from "@/lib/server/auth";
 
 // Use nodejs runtime for web-push (requires crypto)
 export const runtime = "nodejs";
@@ -20,12 +21,22 @@ if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
 // POST - Send push notification
 export async function POST(request: NextRequest) {
   try {
-    // Simple auth check - require a secret key
+    // Auth: allow bearer secret (for automation), otherwise require admin session.
     const authHeader = request.headers.get("authorization");
     const expectedKey = process.env.PUSH_SECRET_KEY;
 
-    if (expectedKey && authHeader !== `Bearer ${expectedKey}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (expectedKey) {
+      if (authHeader !== `Bearer ${expectedKey}`) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+    } else {
+      const auth = await getAuthInfo();
+      if (!auth) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      if (!auth.isAdmin) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     const body = await request.json();

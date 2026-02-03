@@ -1,17 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { getAuthInfo } from "@/lib/server/auth";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 // GET - fetch supplement schedule and today's log
 export async function GET(request: NextRequest) {
+  const auth = await getAuthInfo();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get("userId");
   const type = searchParams.get("type"); // 'schedule' | 'today' | 'log'
 
-  if (!userId) {
-    return NextResponse.json({ error: "userId required" }, { status: 400 });
+  if (userId && userId !== auth.userId && !auth.isAdmin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  const effectiveUserId = userId || auth.userId;
 
   const sql = getDb();
 
@@ -21,7 +28,7 @@ export async function GET(request: NextRequest) {
       const schedules = await sql`
         SELECT day_of_week, reminder_time, supplements, enabled
         FROM supplement_schedules
-        WHERE user_id = ${userId}
+        WHERE user_id = ${effectiveUserId}
         ORDER BY day_of_week
       `;
       return NextResponse.json(schedules);
@@ -36,13 +43,13 @@ export async function GET(request: NextRequest) {
       const [schedule] = await sql`
         SELECT day_of_week, reminder_time, supplements, enabled
         FROM supplement_schedules
-        WHERE user_id = ${userId} AND day_of_week = ${dayOfWeek}
+        WHERE user_id = ${effectiveUserId} AND day_of_week = ${dayOfWeek}
       `;
 
       const [log] = await sql`
         SELECT taken_at, skipped
         FROM supplement_logs
-        WHERE user_id = ${userId} AND date = ${todayDate}
+        WHERE user_id = ${effectiveUserId} AND date = ${todayDate}
       `;
 
       return NextResponse.json({
@@ -56,7 +63,7 @@ export async function GET(request: NextRequest) {
     const schedules = await sql`
       SELECT day_of_week, reminder_time, supplements, enabled
       FROM supplement_schedules
-      WHERE user_id = ${userId}
+      WHERE user_id = ${effectiveUserId}
       ORDER BY day_of_week
     `;
     return NextResponse.json(schedules);
@@ -71,6 +78,11 @@ export async function GET(request: NextRequest) {
 
 // POST - save/update supplement schedule
 export async function POST(request: NextRequest) {
+  const auth = await getAuthInfo();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { userId, dayOfWeek, reminderTime, supplements, enabled } = body;
@@ -80,6 +92,10 @@ export async function POST(request: NextRequest) {
         { error: "userId and dayOfWeek required" },
         { status: 400 }
       );
+    }
+
+    if (userId !== auth.userId && !auth.isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const sql = getDb();
@@ -108,12 +124,21 @@ export async function POST(request: NextRequest) {
 
 // PUT - mark supplements as taken/skipped for today
 export async function PUT(request: NextRequest) {
+  const auth = await getAuthInfo();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const body = await request.json();
     const { userId, taken, skipped } = body;
 
     if (!userId) {
       return NextResponse.json({ error: "userId required" }, { status: 400 });
+    }
+
+    if (userId !== auth.userId && !auth.isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const sql = getDb();
@@ -155,6 +180,11 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - remove a day from schedule
 export async function DELETE(request: NextRequest) {
+  const auth = await getAuthInfo();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get("userId");
   const dayOfWeek = searchParams.get("dayOfWeek");
@@ -164,6 +194,10 @@ export async function DELETE(request: NextRequest) {
       { error: "userId and dayOfWeek required" },
       { status: 400 }
     );
+  }
+
+  if (userId !== auth.userId && !auth.isAdmin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const sql = getDb();

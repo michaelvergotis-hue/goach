@@ -1,25 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { getAuthInfo } from "@/lib/server/auth";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 // GET - Fetch workout session statuses
 export async function GET(request: NextRequest) {
+  const auth = await getAuthInfo();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const sql = getDb();
     const { searchParams } = new URL(request.url);
 
     const userId = searchParams.get("userId");
 
-    if (!userId) {
-      return NextResponse.json({ error: "userId is required" }, { status: 400 });
+    if (userId && userId !== auth.userId && !auth.isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+    const effectiveUserId = userId || auth.userId;
 
     // Get all session statuses for this user
     const result = await sql`
       SELECT day, date, status
       FROM workout_session_status
-      WHERE user_id = ${userId}
+      WHERE user_id = ${effectiveUserId}
       ORDER BY date DESC
     `;
 
@@ -35,6 +42,11 @@ export async function GET(request: NextRequest) {
 
 // POST - Set workout session status (complete or missed)
 export async function POST(request: NextRequest) {
+  const auth = await getAuthInfo();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const sql = getDb();
     const body = await request.json();
@@ -53,6 +65,10 @@ export async function POST(request: NextRequest) {
         { error: "Status must be 'completed' or 'missed'" },
         { status: 400 }
       );
+    }
+
+    if (userId !== auth.userId && !auth.isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const date = new Date().toISOString().split("T")[0];
@@ -79,6 +95,11 @@ export async function POST(request: NextRequest) {
 
 // DELETE - Remove workout session status (undo complete/missed)
 export async function DELETE(request: NextRequest) {
+  const auth = await getAuthInfo();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const sql = getDb();
     const { searchParams } = new URL(request.url);
@@ -91,6 +112,10 @@ export async function DELETE(request: NextRequest) {
         { error: "Missing required params: userId, day" },
         { status: 400 }
       );
+    }
+
+    if (userId !== auth.userId && !auth.isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     await sql`

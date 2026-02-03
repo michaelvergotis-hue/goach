@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { initializeDatabase, migrateDatabase } from "@/lib/db";
+import { getAuthInfo } from "@/lib/server/auth";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 // GET/POST - Initialize database schema
 export async function GET() {
@@ -13,6 +14,14 @@ export async function POST() {
 }
 
 async function initDb() {
+  const auth = await getAuthInfo();
+  if (!auth) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!auth.isAdmin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   try {
     // Run migration first (for existing databases)
     await migrateDatabase();
